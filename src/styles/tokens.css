@@ -1,0 +1,361 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Design tokens — one variable set per theme.
+
+   Night themes deliberately avoid pure-black backgrounds with pure-white text:
+   that combination causes halation for readers with astigmatism. Backgrounds sit
+   at 2–7% luminance and text at 88–94%, giving a comfortable 13–16:1 contrast.
+   Eclipse is the exception — it is an intentional true-black OLED theme.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --font-ui: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --gap: 14px;
+  --pad: 18px;
+  --rail: 62px;
+  --panel: 292px;
+  --topbar: 56px;
+  --statusbar: 30px;
+
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 480ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font-scale: 1;
+  color-scheme: dark;
+}
+
+[data-density='compact'] {
+  --gap: 10px;
+  --pad: 12px;
+  --panel: 258px;
+  --font-scale: 0.94;
+}
+
+/* ─────────────────────── Aurora Mesh (signature) ─────────────────────── */
+[data-theme='aurora'] {
+  --bg: #05060e;
+  --bg-2: #080b18;
+  --surface: rgba(17, 21, 43, 0.62);
+  --surface-2: rgba(24, 29, 56, 0.72);
+  --surface-3: rgba(32, 38, 70, 0.8);
+  --surface-solid: #10142a;
+  --border: rgba(140, 158, 255, 0.16);
+  --border-soft: rgba(140, 158, 255, 0.09);
+  --border-strong: rgba(150, 168, 255, 0.32);
+
+  --text: #e8ecff;
+  --text-dim: #a8b0d4;
+  --text-faint: #6d7599;
+
+  --accent: #7c8cff;
+  --accent-2: #5ef0c8;
+  --accent-3: #a86bff;
+  --accent-ink: #070a18;
+  --accent-soft: rgba(124, 140, 255, 0.14);
+  --accent-line: rgba(124, 140, 255, 0.42);
+
+  --ok: #5ef0c8;
+  --warn: #ffc46b;
+  --err: #ff7a92;
+  --info: #4ee0ff;
+
+  --glass: blur(22px) saturate(150%);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.62);
+  --ring: 0 0 0 3px rgba(124, 140, 255, 0.32);
+
+  --code-bg: rgba(6, 9, 22, 0.78);
+  --tk-kw: #c4a6ff;
+  --tk-str: #86efc0;
+  --tk-num: #ffcf87;
+  --tk-com: #5b6390;
+  --tk-fn: #7fb2ff;
+  --tk-ty: #6ee7f0;
+  --tk-op: #f0a6c8;
+  --tk-pn: #8f98c4;
+  --tk-bi: #ffd479;
+  --tk-var: #9be7c4;
+  --tk-dec: #ff9ecb;
+  --tk-tag: #7fb2ff;
+  --tk-att: #c4a6ff;
+  --tk-val: #86efc0;
+  --tk-rx: #ffcf87;
+  --tk-bool: #ff9ecb;
+  --tk-pr: #a8c8ff;
+
+  --veil: linear-gradient(180deg, rgba(5, 6, 14, 0.42), rgba(5, 6, 14, 0.72));
+}
+
+/* ─────────────────────── Abyssal Bioluminescence ─────────────────────── */
+[data-theme='abyss'] {
+  --bg: #01080f;
+  --bg-2: #02121c;
+  --surface: rgba(4, 26, 38, 0.6);
+  --surface-2: rgba(6, 34, 50, 0.72);
+  --surface-3: rgba(9, 45, 64, 0.8);
+  --surface-solid: #04202e;
+  --border: rgba(10, 255, 199, 0.14);
+  --border-soft: rgba(10, 255, 199, 0.08);
+  --border-strong: rgba(10, 255, 199, 0.3);
+
+  --text: #dff6ff;
+  --text-dim: #93bdd0;
+  --text-faint: #5a8497;
+
+  --accent: #0affc7;
+  --accent-2: #4ee0ff;
+  --accent-3: #0a7fbf;
+  --accent-ink: #00131a;
+  --accent-soft: rgba(10, 255, 199, 0.12);
+  --accent-line: rgba(10, 255, 199, 0.4);
+
+  --ok: #0affc7;
+  --warn: #ffc46b;
+  --err: #ff7a92;
+  --info: #4ee0ff;
+
+  --glass: blur(20px) saturate(140%);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.66);
+  --ring: 0 0 0 3px rgba(10, 255, 199, 0.28);
+
+  --code-bg: rgba(1, 14, 22, 0.82);
+  --tk-kw: #6ee7f0;
+  --tk-str: #8affc0;
+  --tk-num: #ffd479;
+  --tk-com: #3d6b7d;
+  --tk-fn: #4ee0ff;
+  --tk-ty: #a6f5e0;
+  --tk-op: #7fd4ff;
+  --tk-pn: #6e9bb0;
+  --tk-bi: #ffd479;
+  --tk-var: #8affc0;
+  --tk-dec: #ff9ecb;
+  --tk-tag: #4ee0ff;
+  --tk-att: #6ee7f0;
+  --tk-val: #8affc0;
+  --tk-rx: #ffd479;
+  --tk-bool: #ff9ecb;
+  --tk-pr: #a6f5e0;
+
+  --veil: linear-gradient(180deg, rgba(1, 8, 15, 0.5), rgba(1, 8, 15, 0.78));
+}
+
+/* ─────────────────────────── Phosphor CRT ─────────────────────────── */
+[data-theme='phosphor'] {
+  --font-ui: 'JetBrains Mono', ui-monospace, monospace;
+  --bg: #02110a;
+  --bg-2: #03160d;
+  --surface: rgba(4, 30, 18, 0.72);
+  --surface-2: rgba(6, 40, 24, 0.8);
+  --surface-3: rgba(9, 52, 31, 0.86);
+  --surface-solid: #042014;
+  --border: rgba(125, 255, 168, 0.2);
+  --border-soft: rgba(125, 255, 168, 0.1);
+  --border-strong: rgba(125, 255, 168, 0.45);
+
+  --text: #c9ffe0;
+  --text-dim: #7dffa8;
+  --text-faint: #3f9e68;
+
+  --accent: #7dffa8;
+  --accent-2: #3dff94;
+  --accent-3: #12a75a;
+  --accent-ink: #02110a;
+  --accent-soft: rgba(125, 255, 168, 0.12);
+  --accent-line: rgba(125, 255, 168, 0.5);
+
+  --ok: #7dffa8;
+  --warn: #ffe27d;
+  --err: #ff8a7d;
+  --info: #7dffa8;
+
+  --glass: blur(2px);
+  --shadow-sm: 0 0 8px rgba(125, 255, 168, 0.1);
+  --shadow: 0 0 24px rgba(125, 255, 168, 0.12), 0 0 4px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 0 60px rgba(125, 255, 168, 0.16);
+  --ring: 0 0 0 2px rgba(125, 255, 168, 0.5), 0 0 18px rgba(125, 255, 168, 0.35);
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-lg: 5px;
+  --radius-xl: 6px;
+
+  --code-bg: rgba(1, 12, 7, 0.9);
+  /* Monochrome: hue is carried by brightness alone, like real phosphor. */
+  --tk-kw: #ffffff;
+  --tk-str: #9dffb9;
+  --tk-num: #d9ff9d;
+  --tk-com: #3f8a5e;
+  --tk-fn: #b9ffd4;
+  --tk-ty: #e8fff2;
+  --tk-op: #7dffa8;
+  --tk-pn: #5cc483;
+  --tk-bi: #d9ff9d;
+  --tk-var: #9dffb9;
+  --tk-dec: #ffffff;
+  --tk-tag: #b9ffd4;
+  --tk-att: #9dffb9;
+  --tk-val: #d9ff9d;
+  --tk-rx: #e8fff2;
+  --tk-bool: #ffffff;
+  --tk-pr: #b9ffd4;
+
+  --veil: linear-gradient(180deg, rgba(2, 17, 10, 0.72), rgba(2, 17, 10, 0.86));
+}
+
+/* ─────────────────────────── Eclipse Obsidian ─────────────────────────── */
+[data-theme='eclipse'] {
+  --bg: #000000;
+  --bg-2: #050505;
+  --surface: rgba(14, 14, 16, 0.82);
+  --surface-2: rgba(22, 22, 26, 0.88);
+  --surface-3: rgba(32, 32, 38, 0.92);
+  --surface-solid: #0a0a0c;
+  --border: rgba(255, 209, 102, 0.16);
+  --border-soft: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 209, 102, 0.42);
+
+  --text: #f4f6fb;
+  --text-dim: #a9adb8;
+  --text-faint: #6a6e78;
+
+  --accent: #ffd166;
+  --accent-2: #ff9f1c;
+  --accent-3: #f4732b;
+  --accent-ink: #100a02;
+  --accent-soft: rgba(255, 209, 102, 0.12);
+  --accent-line: rgba(255, 209, 102, 0.45);
+
+  --ok: #7ee081;
+  --warn: #ffd166;
+  --err: #ff7a7a;
+  --info: #7fd4ff;
+
+  --glass: blur(14px);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.9);
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.95);
+  --shadow-lg: 0 26px 70px rgba(0, 0, 0, 1);
+  --ring: 0 0 0 2px rgba(255, 209, 102, 0.4);
+
+  --code-bg: rgba(0, 0, 0, 0.9);
+  --tk-kw: #ffd166;
+  --tk-str: #7ee081;
+  --tk-num: #ff9f1c;
+  --tk-com: #55595f;
+  --tk-fn: #7fd4ff;
+  --tk-ty: #f4f6fb;
+  --tk-op: #ff9f1c;
+  --tk-pn: #8b8f99;
+  --tk-bi: #ffd166;
+  --tk-var: #7ee081;
+  --tk-dec: #ff9f1c;
+  --tk-tag: #7fd4ff;
+  --tk-att: #ffd166;
+  --tk-val: #7ee081;
+  --tk-rx: #ff9f1c;
+  --tk-bool: #ffd166;
+  --tk-pr: #cfd4de;
+
+  --veil: linear-gradient(180deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.88));
+}
+
+/* ─────────────────────────── Daylight ─────────────────────────── */
+[data-theme='daylight'] {
+  color-scheme: light;
+  --bg: #f4f6fb;
+  --bg-2: #eaeefb;
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: rgba(255, 255, 255, 0.92);
+  --surface-3: #ffffff;
+  --surface-solid: #ffffff;
+  --border: rgba(28, 39, 84, 0.13);
+  --border-soft: rgba(28, 39, 84, 0.075);
+  --border-strong: rgba(28, 39, 84, 0.26);
+
+  --text: #131a2e;
+  --text-dim: #4d5675;
+  --text-faint: #7b839f;
+
+  --accent: #4b5bd7;
+  --accent-2: #0a7fbf;
+  --accent-3: #7a3fd4;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(75, 91, 215, 0.1);
+  --accent-line: rgba(75, 91, 215, 0.4);
+
+  --ok: #0f8a5f;
+  --warn: #b4690e;
+  --err: #c2334d;
+  --info: #0a6fbf;
+
+  --glass: blur(18px) saturate(160%);
+  --shadow-sm: 0 1px 3px rgba(19, 26, 46, 0.09);
+  --shadow: 0 10px 30px rgba(19, 26, 46, 0.1);
+  --shadow-lg: 0 24px 60px rgba(19, 26, 46, 0.16);
+  --ring: 0 0 0 3px rgba(75, 91, 215, 0.22);
+
+  --code-bg: #0f1424;
+  --tk-kw: #c4a6ff;
+  --tk-str: #86efc0;
+  --tk-num: #ffcf87;
+  --tk-com: #6b7394;
+  --tk-fn: #7fb2ff;
+  --tk-ty: #6ee7f0;
+  --tk-op: #f0a6c8;
+  --tk-pn: #98a2c8;
+  --tk-bi: #ffd479;
+  --tk-var: #9be7c4;
+  --tk-dec: #ff9ecb;
+  --tk-tag: #7fb2ff;
+  --tk-att: #c4a6ff;
+  --tk-val: #86efc0;
+  --tk-rx: #ffcf87;
+  --tk-bool: #ff9ecb;
+  --tk-pr: #a8c8ff;
+
+  --veil: linear-gradient(180deg, rgba(244, 246, 251, 0.2), rgba(244, 246, 251, 0.5));
+}
+
+/* ─────────────────────── motion & a11y overrides ─────────────────────── */
+[data-motion='reduced'] {
+  --dur-fast: 60ms;
+  --dur: 100ms;
+  --dur-slow: 160ms;
+}
+
+[data-motion='off'] *,
+[data-motion='off'] *::before,
+[data-motion='off'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 60ms;
+    --dur: 100ms;
+    --dur-slow: 160ms;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: var(--border-strong);
+    --text-dim: var(--text);
+  }
+}
