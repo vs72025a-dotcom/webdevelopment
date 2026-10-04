@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KNOWLEDGE } from '../ai/knowledge';
+import { KNOWLEDGE_PACK } from '../ai/pack';
 import { EMBED_DIM } from '../ai/embeddings';
 import { store as vectorStore, type Hit } from '../ai/vectorStore';
 import { useStore } from '../store/appStore';
@@ -47,7 +48,7 @@ function ScoreBar({ hit }: { hit: Hit }): JSX.Element {
 
 export function DocumentsView(): JSX.Element {
   const store = useStore();
-  const { documents, indexStats } = store;
+  const { documents, indexStats, settings } = store;
 
   const [over, setOver] = useState(false);
   const [query, setQuery] = useState('');
@@ -185,7 +186,7 @@ export function DocumentsView(): JSX.Element {
             <div className="kpi">
               <div className="kpi-value">{indexStats.chunks.toLocaleString()}</div>
               <div className="kpi-label">
-                vectors total ({indexStats.sources} incl. {KNOWLEDGE.length} built-in)
+                vectors total ({indexStats.sources} incl. {KNOWLEDGE.length + (settings.engine.extendedPack ? KNOWLEDGE_PACK.length : 0)} built-in)
               </div>
             </div>
             <div className="kpi">
@@ -325,7 +326,7 @@ export function DocumentsView(): JSX.Element {
                   <Icon name="doc" className="ico" />
                   <strong>No documents yet</strong>
                   <p>
-                    Drop a text file above. Until then, chat answers draw on the {KNOWLEDGE.length} built-in knowledge
+                    Drop a text file above. Until then, chat answers draw on the {KNOWLEDGE.length + (settings.engine.extendedPack ? KNOWLEDGE_PACK.length : 0)} built-in knowledge
                     entries and the live tools.
                   </p>
                 </div>

@@ -1712,6 +1712,18 @@ sup.cite {
 
 .markdown.is-streaming > :last-child { margin-bottom: 0; }
 
+.pack-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 2px 0 6px;
+}
+.pack-groups .chip {
+  font-size: 11px;
+  padding: 3px 9px;
+}
+
 /* ───────────────────────────── responsive ───────────────────────────── */
 @media (max-width: 1080px) {
   .tab-label { display: none; }

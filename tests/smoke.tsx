@@ -7,6 +7,10 @@ const React = require('react');
 const { createRoot } = require('react-dom/client');
 const { act } = require('react-dom/test-utils');
 const App = require('../src/App').default;
+const { knowledgePackStatus } = require('../src/ai/engine');
+const { store: vectorStore } = require('../src/ai/vectorStore');
+const { KNOWLEDGE_PACK } = require('../src/ai/pack');
+const fs = require('fs');
 
 let failures = 0;
 function check(name: string, cond: boolean, extra = ''): void {
@@ -37,6 +41,9 @@ function click(el: Element | null): void {
 
 async function typeInto(el: Element, value: string): Promise<void> {
   const input = el as HTMLTextAreaElement;
+  if (!(input instanceof w.HTMLTextAreaElement) && !(input instanceof w.HTMLInputElement)) {
+    throw new Error(`typeInto: expected a textarea or input, got ${input === null ? 'null' : input.tagName}`);
+  }
   await act(async () => {
     const setter = Object.getOwnPropertyDescriptor(
       input instanceof w.HTMLTextAreaElement ? w.HTMLTextAreaElement.prototype : w.HTMLInputElement.prototype,
@@ -146,6 +153,38 @@ async function main(): Promise<void> {
   );
   check('report has content', (qa('.card-pad .markdown').pop()?.textContent ?? '').length > 60);
 
+  process.stdout.write('\nExtended knowledge pack\n');
+  const packOff0 = knowledgePackStatus();
+  check('pack indexed at boot', packOff0.indexed && packOff0.enabled, JSON.stringify(packOff0));
+  check(`pack holds ${KNOWLEDGE_PACK.length} entries`, KNOWLEDGE_PACK.length >= 50 && packOff0.entries === KNOWLEDGE_PACK.length);
+  check('pack source is in the vector store as knowledge', vectorStore.getSource('pk:p-lora')?.kind === 'knowledge');
+  check('second pack entry is indexed too', vectorStore.getSource('pk:p-http-caching')?.kind === 'knowledge');
+
+  click(qa('.tab')[0]);
+  await settle(240);
+  await typeInto(q('.composer-text')!, 'What is QLoRA and how does it save memory?');
+  click(q('.send-btn'));
+  await settle(2400);
+  const packAnswer = qa('.msg[data-role="assistant"] .bubble').pop()?.textContent ?? '';
+  check('pack-only question is answered', packAnswer.length > 80, `→ ${packAnswer.slice(0, 90)}`);
+  check('pack answer is about the right topic', /lora|4-bit|adapter|nf4/i.test(packAnswer), `→ ${packAnswer.slice(0, 120)}`);
+
+  const idbEarly = require('../src/store/db');
+  const convsEarly = await idbEarly.db.getAll(idbEarly.STORE.conversations);
+  const newest = convsEarly.sort((a: any, b: any) => b.updatedAt - a.updatedAt)[0];
+  const lastAssistant = [...(newest?.messages ?? [])].reverse().find((m: any) => m.role === 'assistant');
+  const firstCite = lastAssistant?.citations?.[0];
+  check('pack answer cites a built-in source', /^pk:/.test(firstCite?.sourceId ?? ''), `→ ${firstCite?.sourceId ?? 'none'}`);
+  check('that citation is labelled knowledge, not document', firstCite?.kind === 'knowledge', `→ ${firstCite?.kind ?? 'none'}`);
+
+  process.stdout.write('\nInstallable / offline\n');
+  check('web app manifest shipped', fs.existsSync('public/manifest.webmanifest') && JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8')).icons.length >= 2);
+  check('manifest declares standalone display', JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8')).display === 'standalone');
+  const swSource = fs.readFileSync('public/sw.js', 'utf8');
+  check('service worker shipped', swSource.includes("caches.open(VERSION)") && swSource.includes("request.method !== 'GET'"));
+  check('service worker never caches dev or cross-origin traffic', swSource.includes("'/@'") && swSource.includes('url.origin !== self.location.origin'));
+  check('manifest + apple icon wired into index.html', /rel="manifest"/.test(fs.readFileSync('index.html', 'utf8')) && /apple-touch-icon/.test(fs.readFileSync('index.html', 'utf8')));
+
   process.stdout.write('\nSettings\n');
   click(qa('.rail-btn')[qa('.rail-btn').length - 1]);
   await settle(300);
@@ -170,6 +209,50 @@ async function main(): Promise<void> {
     failedRows.length === 0,
     failedRows.map((r) => `\n      → ${(r.textContent ?? '').slice(0, 140)}`).join(''),
   );
+
+  process.stdout.write('\nCorpus toggle + library import\n');
+  const packSwitch = qa('.setting-row').find((r) => /Extended knowledge pack/.test(r.textContent ?? ''))
+    ?.querySelector('.switch') as HTMLElement | null;
+  check('extended pack switch is rendered', !!packSwitch);
+  if (packSwitch) {
+    check('switch starts on', packSwitch.getAttribute('aria-checked') === 'true');
+    click(packSwitch);
+    await settle(300);
+    check('turning it off drops the pack from the index', !knowledgePackStatus().indexed && !vectorStore.getSource('pk:p-lora'));
+    click(packSwitch);
+    await settle(300);
+    check('turning it back on restores the pack', knowledgePackStatus().indexed && !!vectorStore.getSource('pk:p-lora'));
+  }
+
+  // Scoped by aria-label: the rail has its own hidden file input for indexing files.
+  const fileInput = q('input[aria-label="Import library JSON"]') as HTMLInputElement | null;
+  check('library import input exists', !!fileInput);
+  if (fileInput) {
+    const payload = JSON.stringify({
+      app: 'Aurora Mind',
+      documents: [
+        { title: 'Imported test doc', text: 'Nebula spectroscopy notes. The imported fixture says the emission lines of a planetary nebula broaden with expansion velocity, which is how astronomers measure how fast the shell is moving.' },
+        { title: 'Empty entry', text: '' },
+      ],
+    });
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        configurable: true,
+        value: [{ name: 'library.json', text: async () => payload }],
+      });
+      fileInput.dispatchEvent(new w.Event('change', { bubbles: true }));
+    });
+    await settle(700);
+    const imported = vectorStore.listSources().find((s: any) => s.title === 'Imported test doc');
+    check('imported document is indexed', !!imported, `→ ${vectorStore.listSources().map((s: any) => s.title).join(', ').slice(0, 120)}`);
+    check('imported document has retrievable chunks', (imported?.chunks ?? 0) >= 1, `→ ${imported?.chunks ?? 'none'}`);
+    const docsInDb = await idbEarly.db.getAll(idbEarly.STORE.documents);
+    check('imported document persisted to IndexedDB', docsInDb.some((d: any) => d.title === 'Imported test doc'), `(${docsInDb.length} records)`);
+    check('it answers from the imported text', (() => {
+      const hits = vectorStore.search('how do astronomers measure expansion velocity', 3, ['document', 'note'], 0.05);
+      return hits.some((h: any) => h.chunk.sourceId === imported?.id);
+    })());
+  }
 
   process.stdout.write('\nCommand palette\n');
   await act(async () => {

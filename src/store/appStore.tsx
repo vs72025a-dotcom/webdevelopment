@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  bootstrapKnowledge, generate, ENGINE_MODEL_ID,
+  bootstrapKnowledge, generate, setKnowledgePack, ENGINE_MODEL_ID,
   type EngineEvent, type EnginePhase, type Citation, type ChatTurn,
 } from '../ai/engine';
 import { streamProvider, buildSystemPrompt, DEFAULT_CONFIG, type ProviderConfig, type ProviderEvent, type ProviderMessage } from '../ai/providers';
@@ -115,14 +115,22 @@ export function StoreProvider({ children }: { children: ReactNode }): ReactNode 
 
   const indexStats = useMemo(
     () => ({ chunks: vectorStore.size, sources: vectorStore.sourceCount }),
-    [documents.length, ready],
+    [documents.length, ready, settings.engine.extendedPack],
   );
+
+  // Settings toggles the extended corpus; keep the live index in step.
+  useEffect(() => {
+    if (!ready) return;
+    setKnowledgePack(settings.engine.extendedPack);
+  }, [ready, settings.engine.extendedPack]);
 
   // ───────────────────────── boot ─────────────────────────
   useEffect(() => {
     let cancelled = false;
     (async () => {
       bootstrapKnowledge();
+      // The saved preference decides whether the extended corpus is indexed.
+      if (!settingsRef.current.engine.extendedPack) setKnowledgePack(false);
       const [convs, docs] = await Promise.all([
         db.getAll<Conversation>(STORE.conversations),
         db.getAll<DocRecord>(STORE.documents),

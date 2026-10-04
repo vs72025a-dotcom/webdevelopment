@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ACCENT_CHOICES, THEMES, type ThemeChoice } from '../theme/themes';
 import { useTheme } from '../theme/ThemeContext';
 import { PROVIDER_PRESETS, probeProvider, type ProviderKind } from '../ai/providers';
 import { KNOWLEDGE } from '../ai/knowledge';
+import { PACK_GROUPS, KNOWLEDGE_PACK } from '../ai/pack';
+import { knowledgePackStatus } from '../ai/engine';
 import { EMBED_DIM } from '../ai/embeddings';
 import { runTool } from '../ai/tools';
 import { generate } from '../ai/engine';
@@ -199,6 +201,58 @@ export function SettingsView(): JSX.Element {
     setDiagRunning(false);
   }, [conversations.length, documents.length, indexStats.chunks, settings]);
 
+  const importRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  /**
+   * Read an exported library back in. Exports strip chunk embeddings but keep
+   * the source text, so everything is re-embedded locally on the way in — which
+   * also means an export from another machine, or from a hand-written JSON file,
+   * is a valid library.
+   */
+  const importLibrary = useCallback(
+    async (file: File) => {
+      setImporting(true);
+      try {
+        const parsed = JSON.parse(await file.text()) as unknown;
+        const items: Array<Record<string, unknown>> = Array.isArray(parsed)
+          ? (parsed as Array<Record<string, unknown>>)
+          : Array.isArray((parsed as { documents?: unknown }).documents)
+            ? ((parsed as { documents: Array<Record<string, unknown>> }).documents)
+            : Array.isArray((parsed as { notes?: unknown }).notes)
+              ? ((parsed as { notes: Array<Record<string, unknown>> }).notes)
+              : [];
+        const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+        let added = 0;
+        let skipped = 0;
+        for (const item of items) {
+          const body = str(item.text) || str(item.content) || str(item.note) || str(item.body);
+          if (!body) {
+            skipped += 1;
+            continue;
+          }
+          const title = str(item.title) || str(item.name) || `Imported source ${added + 1}`;
+          await store.addNote(title, body);
+          added += 1;
+        }
+        if (added) {
+          store.toast(
+            'ok',
+            `Imported ${added} source${added === 1 ? '' : 's'}`,
+            `${skipped ? `${skipped} entries had no text and were skipped. ` : ''}They are indexed and ready to cite — try asking a question in chat.`,
+          );
+        } else {
+          store.toast('warn', 'Nothing to import', 'No objects with a text field were found in that file.');
+        }
+      } catch (err) {
+        store.toast('err', 'Import failed', err instanceof Error ? err.message : 'That file is not valid JSON.');
+      } finally {
+        setImporting(false);
+      }
+    },
+    [store],
+  );
+
   const exportAll = useCallback(async () => {
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -392,7 +446,7 @@ export function SettingsView(): JSX.Element {
             id="engine"
             title="On-device engine"
             icon="cpu"
-            sub={`${indexStats.chunks.toLocaleString()} vectors · ${KNOWLEDGE.length} built-in entries`}
+            sub={`${indexStats.chunks.toLocaleString()} vectors · ${KNOWLEDGE.length + (settings.engine.extendedPack ? KNOWLEDGE_PACK.length : 0)} built-in entries`}
           >
             <Row
               title="Retrieve from my documents"
@@ -404,13 +458,36 @@ export function SettingsView(): JSX.Element {
                 onChange={(v) => updateSettings({ engine: { ...settings.engine, useDocuments: v } })}
               />
             </Row>
-            <Row title="Retrieve from the built-in corpus" hint={`${KNOWLEDGE.length} entries covering AI, this app, engineering practice and science.`}>
+            <Row title="Retrieve from the core corpus" hint={`${KNOWLEDGE.length} curated entries covering AI, this app, engineering practice and science.`}>
               <Switch
                 checked={settings.engine.useKnowledge}
                 label="Retrieve from the built-in corpus"
                 onChange={(v) => updateSettings({ engine: { ...settings.engine, useKnowledge: v } })}
               />
             </Row>
+            <Row
+              title="Extended knowledge pack"
+              hint={`${KNOWLEDGE_PACK.length} more entries on model training and serving, the web platform, security, distributed systems, science and practical life. Switch it off to answer only from your own documents plus the ${KNOWLEDGE.length} core entries.`}
+            >
+              <Switch
+                checked={settings.engine.extendedPack}
+                label="Extended knowledge pack"
+                onChange={(v) => updateSettings({ engine: { ...settings.engine, extendedPack: v } })}
+              />
+            </Row>
+            <div className="pack-groups">
+              {PACK_GROUPS.map((g) => {
+                const n = KNOWLEDGE_PACK.filter((e) => e.group === g.id).length;
+                return (
+                  <span className="chip" key={g.id} data-on={settings.engine.extendedPack} title={g.blurb}>
+                    {g.label} <span style={{ opacity: 0.6 }}>{n}</span>
+                  </span>
+                );
+              })}
+              <span className="mono" style={{ fontSize: 11, opacity: 0.65, alignSelf: 'center' }}>
+                {knowledgePackStatus().indexed ? 'indexed' : 'not indexed'}
+              </span>
+            </div>
             <Row title="Streaming speed" hint="How fast tokens are surfaced. 0 shows the whole answer at once; higher is more cinematic.">
               <input
                 className="range"
@@ -740,6 +817,27 @@ export function SettingsView(): JSX.Element {
             <Row title="Export everything" hint="One JSON file: settings, conversations, documents and saved renders.">
               <button type="button" className="btn btn-sm" onClick={() => void exportAll()}>
                 <Icon name="download" size={13} /> Export JSON
+              </button>
+            </Row>
+
+            <Row
+              title="Import a library"
+              hint="Reads an Aurora Mind export (or a plain JSON file with title/text pairs) and indexes the documents and notes it contains, re-embedding them on this device."
+            >
+              <input
+                ref={importRef}
+                type="file"
+                accept="application/json,.json"
+                aria-label="Import library JSON"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void importLibrary(file);
+                }}
+              />
+              <button type="button" className="btn btn-sm" disabled={importing} onClick={() => importRef.current?.click()}>
+                <Icon name="upload" size={13} /> {importing ? 'Importing…' : 'Import JSON'}
               </button>
             </Row>
 

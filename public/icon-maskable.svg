@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Aurora Mind">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#0b1230" />
+      <stop offset="60%" stop-color="#070a18" />
+      <stop offset="100%" stop-color="#03040c" />
+    </radialGradient>
+    <radialGradient id="orb" cx="50%" cy="34%" r="70%">
+      <stop offset="0%" stop-color="#c9f4ff" />
+      <stop offset="40%" stop-color="#7c8cff" />
+      <stop offset="100%" stop-color="#3a1d7a" />
+    </radialGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5ef0c8" />
+      <stop offset="55%" stop-color="#7c8cff" />
+      <stop offset="100%" stop-color="#a86bff" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)" />
+  <g opacity="0.75">
+    <circle cx="96" cy="96" r="3.5" fill="#dfe8ff" />
+    <circle cx="404" cy="120" r="2.6" fill="#dfe8ff" />
+    <circle cx="140" cy="176" r="2" fill="#dfe8ff" />
+    <circle cx="372" cy="212" r="2.2" fill="#dfe8ff" />
+    <circle cx="216" cy="78" r="1.8" fill="#dfe8ff" />
+    <circle cx="452" cy="300" r="2.4" fill="#dfe8ff" />
+  </g>
+  <circle cx="256" cy="238" r="150" fill="url(#orb)" opacity="0.93" />
+  <path d="M104 320c48-72 96 32 152-24s96 48 152-32" fill="none" stroke="url(#ribbon)" stroke-width="27" stroke-linecap="round" />
+  <path d="M120 384c48-56 88 24 136-16s88 40 136-24" fill="none" stroke="#5ef0c8" stroke-width="16" stroke-linecap="round" opacity="0.55" />
+  <circle cx="256" cy="238" r="41" fill="#07101f" />
+  <circle cx="269" cy="226" r="13.5" fill="#eaf3ff" />
+</svg>

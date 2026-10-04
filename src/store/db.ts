@@ -95,6 +95,8 @@ export interface Settings {
   engine: {
     useDocuments: boolean;
     useKnowledge: boolean;
+    /** Index the extended 58-entry corpus on top of the core corpus. */
+    extendedPack: boolean;
     streamSpeed: number;
   };
   speech: {
@@ -124,7 +126,7 @@ export const DEFAULT_SETTINGS: Settings = {
     useTools: true,
     groundWithRetrieval: true,
   },
-  engine: { useDocuments: true, useKnowledge: true, streamSpeed: 1 },
+  engine: { useDocuments: true, useKnowledge: true, extendedPack: true, streamSpeed: 1 },
   speech: { enabled: false, rate: 1, pitch: 1, voiceName: '', listenOnStart: false },
   firstRunDone: false,
 };

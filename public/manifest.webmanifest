@@ -1,0 +1,23 @@
+{
+  "name": "Aurora Mind — Advanced AI Workspace",
+  "short_name": "Aurora Mind",
+  "description": "An in-browser AI workspace: on-device retrieval and reasoning engine, document RAG, code lab, prompt studio, agent planner and four signature night modes.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05060e",
+  "theme_color": "#070a18",
+  "categories": ["productivity", "utilities", "developer"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "/favicon.svg", "sizes": "64x64", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "New chat", "url": "/?view=chat" },
+    { "name": "Agents", "url": "/?view=agents" },
+    { "name": "Prompt Studio", "url": "/?view=studio" }
+  ]
+}

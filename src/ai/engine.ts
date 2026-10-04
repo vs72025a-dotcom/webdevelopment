@@ -14,6 +14,7 @@
 
 import { cosine, embed, hybridScore, rng } from './embeddings';
 import { KNOWLEDGE } from './knowledge';
+import { KNOWLEDGE_PACK } from './pack';
 import { runTool, ToolResult, TOOL_MAP } from './tools';
 import { store, Hit } from './vectorStore';
 import {
@@ -94,19 +95,68 @@ export const ENGINE_MODEL_ID = 'aurora-neuro-1 (on-device)';
 
 /** Corpus bootstrapping: index the built-in knowledge base once. */
 let bootstrapped = false;
-export function bootstrapKnowledge(): void {
-  if (bootstrapped) return;
-  bootstrapped = true;
-  for (const entry of KNOWLEDGE) {
+let packEnabled = true;
+let packIndexed = false;
+
+function indexEntries(entries: typeof KNOWLEDGE, prefix: string): void {
+  for (const entry of entries) {
     // Body only. The title travels in `sourceTitle` (and is used by the
     // retrieval re-rank), so the composer never mistakes a title fragment such
     // as "Hallucination in language models." for an answer sentence.
     store.addSource(
-      { id: `kb:${entry.id}`, title: entry.title, kind: 'knowledge', addedAt: 0, meta: { tags: entry.tags.join(',') } },
+      {
+        id: `${prefix}${entry.id}`,
+        title: entry.title,
+        kind: 'knowledge',
+        addedAt: 0,
+        meta: { tags: entry.tags.join(',') },
+      },
       entry.body,
       { target: 1400, overlap: 0 },
     );
   }
+}
+
+export function bootstrapKnowledge(): void {
+  if (bootstrapped) return;
+  bootstrapped = true;
+  indexEntries(KNOWLEDGE, 'kb:');
+  if (packEnabled) indexPack();
+}
+
+function indexPack(): void {
+  if (packIndexed) return;
+  packIndexed = true;
+  indexEntries(KNOWLEDGE_PACK, 'pk:');
+}
+
+function unindexPack(): void {
+  if (!packIndexed) return;
+  for (const entry of KNOWLEDGE_PACK) store.removeSource(`pk:${entry.id}`);
+  packIndexed = false;
+}
+
+/**
+ * Turn the extended corpus on or off at runtime. The pack is indexed on top of
+ * the core corpus because it is what the engine answers general questions from;
+ * switching it off leaves only the built-in entries and your own documents.
+ */
+export function setKnowledgePack(enabled: boolean): KnowledgePackStatus {
+  bootstrapKnowledge();
+  packEnabled = enabled;
+  if (enabled) indexPack();
+  else unindexPack();
+  return knowledgePackStatus();
+}
+
+export interface KnowledgePackStatus {
+  enabled: boolean;
+  indexed: boolean;
+  entries: number;
+}
+
+export function knowledgePackStatus(): KnowledgePackStatus {
+  return { enabled: packEnabled, indexed: packIndexed, entries: KNOWLEDGE_PACK.length };
 }
 
 // ─────────────────────────────── intent classification ───────────────────────────────
@@ -123,7 +173,13 @@ const PATTERNS: Array<{ intent: Intent; re: RegExp; weight: number }> = [
   { intent: 'conversion', re: /\b(convert|conversion|how many|how much is|in terms of)\b.*\b(km|mi|kg|lb|pound|inch|feet|foot|celsius|fahrenheit|kelvin|gb|mb|tb|mph|kph|litre|gallon|acre|hectare)\b/i, weight: 2.4 },
   { intent: 'conversion', re: /\b\d+(\.\d+)?\s*(°?\s*(c|f|k)|km|mi|kg|lb|ft|in|cm|mm|gb|mb|kb|tb|mph|km\/h|kph|hours?|minutes?|days?|weeks?|years?)\b.*\b(to|in|into)\b/i, weight: 2.2 },
   { intent: 'base', re: /\b(binary|hex(adecimal)?|octal|base\s*\d{1,2}|0x[0-9a-f]+)\b/i, weight: 2 },
-  { intent: 'datetime', re: /\b(what(?:'s|\u2019s| is|s)?\s*(?:the\s*)?(?:current\s*)?(time|date|day)|current (time|date)|today'?s date|what day is it|unix timestamp|epoch time|right now|what time)\b/i, weight: 2.6 },
+  {
+    intent: 'datetime',
+    // The trailing lookahead keeps topic words out: "what is time dilation",
+    // "time zones", "response time" and "real time" are not clock questions.
+    re: /\b(what(?:'s|\u2019s| is|s)?\s*(?:the\s*)?(?:current\s*)?(time|date|day)(?!\s+(dilation|complexity|zone|zones|travel|series|value|signature|loop|out|stamp|frame|machine|budget|limit|window|constant|period))\b|current (time|date)|today'?s date|what day is it|unix timestamp|epoch time|right now|what time)\b/i,
+    weight: 2.6,
+  },
   { intent: 'uuid', re: /\b(uuids?|guids?|unique (?:id|ids|identifier|identifiers))\b/i, weight: 2.6 },
   { intent: 'random', re: /\b(random (?:number|numbers|integer|value|values)|pick a (?:number|card)|roll (?:a|the|\d+)?\s*(?:die|dice|d\d{1,3})|generate \d+ random|shuffle)\b/i, weight: 2.6 },
   { intent: 'hash', re: /\b(sha-?(1|256|512)|hash (this|of|the)|md5|digest|checksum)\b/i, weight: 2.6 },
@@ -220,10 +276,15 @@ export function classifyIntent(input: string, ctx: ClassifyContext): {
 
 // ─────────────────────────────── retrieval ───────────────────────────────
 
+/** A scored hit that also knows whether it came from the built-in corpora. */
+export interface RankedHit extends Hit {
+  knowledge: boolean;
+}
+
 interface RetrievalResult {
-  hits: Hit[];
-  docHits: Hit[];
-  kbHits: Hit[];
+  hits: RankedHit[];
+  docHits: RankedHit[];
+  kbHits: RankedHit[];
   topScore: number;
   expandedQuery: string;
 }
@@ -280,6 +341,15 @@ export function expandQuery(query: string): string {
  * that merely mentions the same words. Without this, "what is lora" ranked the
  * RLHF entry first because that body happens to contain more overlapping terms.
  */
+/**
+ * Tag raw vector-store hits with where they came from. `retrieve()` does this
+ * during its re-rank; callers that search the store directly use this instead so
+ * a built-in entry is never labelled as one of the user's own documents.
+ */
+export function tagHits(hits: Hit[]): RankedHit[] {
+  return hits.map((h) => ({ ...h, knowledge: store.getSource(h.chunk.sourceId)?.kind === 'knowledge' }));
+}
+
 function retrieve(query: string, opts: { useDocuments: boolean; useKnowledge: boolean }): RetrievalResult {
   const expanded = expandQuery(query);
   const combined = `${query}. ${expanded}`;
@@ -298,13 +368,16 @@ function retrieve(query: string, opts: { useDocuments: boolean; useKnowledge: bo
       let overlap = 0;
       for (const t of titleTerms) if (qTerms.has(t) || qTerms.has(stem(t))) overlap++;
       const bonus = titleTerms.size ? 0.22 * (overlap / Math.min(titleTerms.size, Math.max(1, qTerms.size))) : 0;
-      return { ...h, score: h.score + bonus };
+      return { ...h, score: h.score + bonus, knowledge: src?.kind === 'knowledge' };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);
 
-  const docHits = hits.filter((h) => !h.chunk.sourceId.startsWith('kb:'));
-  const kbHits = hits.filter((h) => h.chunk.sourceId.startsWith('kb:'));
+  // Pack entries (pk:) are built-in knowledge too. Classifying by source kind
+  // rather than by id prefix keeps them out of the "your documents" path, which
+  // would otherwise quote a built-in entry back as if the user had uploaded it.
+  const docHits = hits.filter((h) => !h.knowledge);
+  const kbHits = hits.filter((h) => h.knowledge);
   const topScore = hits[0]?.score ?? 0;
   return { hits, docHits, kbHits, topScore, expandedQuery: expanded };
 }
@@ -351,14 +424,14 @@ const REFUSAL_LINES = [
 
 function composeGrounded(
   query: string,
-  hits: Hit[],
+  hits: RankedHit[],
   intent: Intent,
   opts: { useDocuments: boolean },
 ): { content: string; citations: Citation[]; confidence: number } {
   const citations: Citation[] = [];
   const used = new Map<string, number>();
 
-  const pushCitation = (h: Hit): number => {
+  const pushCitation = (h: RankedHit): number => {
     const key = h.chunk.sourceId;
     const existing = used.get(key);
     if (existing !== undefined) return existing;
@@ -370,7 +443,7 @@ function composeGrounded(
       sourceId: h.chunk.sourceId,
       excerpt: h.chunk.text.slice(0, 240),
       score: h.score,
-      kind: h.chunk.sourceId.startsWith('kb:') ? 'knowledge' : 'document',
+      kind: h.knowledge ? 'knowledge' : 'document',
     });
     return idx;
   };
@@ -410,7 +483,7 @@ function composeGrounded(
   // Quote the most relevant document chunk verbatim when doing document Q&A,
   // because users want to see the actual source text, not a paraphrase.
   if (intent === 'doc_qa' && opts.useDocuments) {
-    const docHit = hits.find((h) => !h.chunk.sourceId.startsWith('kb:'));
+    const docHit = hits.find((h) => !h.knowledge);
     if (docHit) {
       const ref = pushCitation(docHit);
       parts.push('', `> ${docHit.chunk.text.length > 600 ? `${docHit.chunk.text.slice(0, 600)}…` : docHit.chunk.text}`, '', `_[${ref}] ${docHit.chunk.sourceTitle}, chunk ${docHit.chunk.index + 1}_`);
@@ -1156,7 +1229,7 @@ function composeConversational(query: string, history: ChatTurn[]): string {
     return 'Anything else you want me to work through? I can calculate, convert units, analyse or summarise text, explain code, search the corpus, or plan a multi-step agent task.';
   }
   if (/\?$/.test(query.trim()) && topics.length) {
-    const hits = store.search(query, 3, ['knowledge', 'document', 'note'], 0.05);
+    const hits = tagHits(store.search(query, 3, ['knowledge', 'document', 'note'], 0.05));
     if (hits.length) {
       const composed = composeGrounded(query, hits, 'knowledge', { useDocuments: true });
       return composed.content;

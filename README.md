@@ -9,7 +9,7 @@ optionally hand the wheel to a frontier model when you paste an API key.
 npm install
 npm run dev        # http://localhost:5173 — binds 0.0.0.0
 npm run build      # tsc -b && vite build
-npm test           # typecheck + the jsdom runtime smoke test (57 assertions)
+npm test           # typecheck + the jsdom runtime smoke test (79 assertions)
 ```
 
 ---
@@ -19,7 +19,7 @@ npm test           # typecheck + the jsdom runtime smoke test (57 assertions)
 | View | What it actually does |
 | --- | --- |
 | **Chat** | Streaming answers with an expandable reasoning trace, tool cards showing the exact call and its output, inline `[n]` citations that open the source passage, per-message copy / read-aloud / regenerate / edit-and-rerun, and markdown with syntax-highlighted code. |
-| **Documents** | Drop text files or paste notes; they are chunked (760/120 overlap) and embedded into 1024-d vectors *in the tab*. A retrieval tester runs the same hybrid search the engine runs and shows semantic vs lexical scores per hit. |
+| **Documents** | Drop text files or paste notes; they are chunked (760/120 overlap) and embedded into 1024-d vectors *in the tab*. A retrieval tester runs the same hybrid search the engine runs and shows semantic vs lexical scores per hit. Settings can import a library back in from an export or any JSON file of title/text pairs — sources are re-embedded locally. |
 | **Code Lab** | A gutter-numbered editor with a highlighter preview, deterministic static analysis from our own parser (structure, complexity, smells), and Explain / Review / Tests / Refactor through the engine. |
 | **Prompt Studio** | A structured prompt compiles into a spec (style, palette, density, chaos, glow, grain, scale, per-term TF-IDF weights, negative terms) that drives a seeded renderer — value-noise nebulae, marching-squares topography, flow fields, circuits. Same seed, same pixels. Export PNG or save to the gallery. |
 | **Agents** | A goal is decomposed into steps, each step names its tool and arguments, the tools really execute, and the report is written only from what they returned. Every step shows its own output and timing. |
@@ -49,8 +49,14 @@ Nothing is mocked. `src/ai/` is the whole brain:
   provider's function calling.
 - **`analysis.ts`** — MMR extractive summarisation (λ = 0.72), TF-IDF keywords, sentiment,
   syllable-based readability.
-- **`knowledge.ts`** — ~50 hand-written entries covering AI, this app, engineering practice and
+- **`knowledge.ts`** — 53 hand-written core entries covering AI, this app, engineering practice and
   science; indexed at boot as retrievable, citable sources.
+- **`pack.ts`** — the extended pack: 58 more entries across machine-learning systems, the web
+  platform, security, distributed data, science and practical life. Indexed on top of the core
+  corpus and switchable from Settings. Measured end to end on a 100-question set: answers whose
+  top citation is the right entry go from **15.8 % → 78.9 %** on questions only the pack can
+  answer, while core questions move **76.7 % → 74.4 %**. It also cuts ungrounded answers (8 → 3)
+  and low-confidence answers (21 → 3), so it ships on by default.
 - **`engine.ts`** — intent classification with a continuity rule for terse follow-ups, retrieval
   with query expansion, tool orchestration, and composition that cites what it used.
 - **`markdown.ts` / `highlight.ts`** — an escape-first markdown renderer (tables, task lists,
@@ -63,8 +69,10 @@ Nothing is mocked. `src/ai/` is the whole brain:
 
 ### Grounding and honesty
 
-Retrieval has to clear two gates before a passage may be cited: a score floor of `0.74 × top`
-**and** at least one shared content term with the query. If nothing clears the floor, the engine
+Hits are re-ranked by a title-and-tag overlap bonus, then classified by *source kind* rather than
+by id prefix, so a built-in entry can never be quoted back as if you had uploaded it. Retrieval has
+to clear two gates before a passage may be cited: a score floor of `0.74 × top` **and** at least one
+shared content term with the query. If nothing clears the floor, the engine
 says it could not find support rather than inventing an answer, and low-confidence answers carry a
 visible badge. Every answer reports its confidence, its intent and its latency.
 
@@ -89,6 +97,14 @@ Accent colour, motion (full / reduced / off) and density (cosy / compact) are in
 The theme is applied by an inline script in `index.html` before first paint, so a night theme never
 flashes white on load. `prefers-reduced-motion` is respected by default.
 
+## Installable and offline
+
+The app ships a web app manifest and a service worker, registered only in production builds so it
+can never cache a dev-server module. The worker precaches the shell, serves hashed assets
+cache-first, falls back to the cached shell for navigations when the network is gone, and passes
+everything else through untouched — provider API calls, streams and WebSockets are never
+intercepted. Install it from the browser's address bar and it opens offline as its own window.
+
 ## Privacy and persistence
 
 Conversations, documents, embeddings, saved renders and preferences live in IndexedDB and
@@ -105,7 +121,13 @@ turn and asserts the arithmetic answer (`12% of 4860 + √2025 = 628.2`) and its
 RAG question and asserts citations arrive with relevance scores, runs the retrieval tester, the code
 analyser, the art renderer (checking the render stats overlay), an agent plan and report, every
 theme including the CRT overlay, the settings diagnostics, and the command palette — finishing by
-reading the conversation back out of IndexedDB. 57 assertions, all passing.
+reading the conversation back out of IndexedDB. It also checks the extended pack is indexed and
+labelled as knowledge rather than as a user document, toggles it off and on through the real
+Settings switch, imports a library fixture and confirms it is retrievable, and verifies the shipped
+manifest and service worker. 79 assertions, all passing.
 
 The scratch harnesses under `.scratch/` (gitignored) cover the maths parser, unit conversion,
-markdown safety, the highlighter, the retrieval benchmark and solar day-length accuracy.
+markdown safety, the highlighter, the retrieval benchmark, the extended-pack ablation study and
+solar day-length accuracy. `bench3`/`e2e` are the scripts that decided the pack's default: they
+measure top-citation accuracy with the pack off and on, including the effect on questions the core
+corpus already answered.
