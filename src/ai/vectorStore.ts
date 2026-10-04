@@ -6,7 +6,7 @@
  * fraction of the memory. Chunks are embedded once and cached by content hash.
  */
 
-import { cosine, embed, hybridScore } from './embeddings';
+import { blend, cosine, embed, stemCoverage } from './embeddings';
 import { contentTerms, estimateTokens, splitSentences, stem } from './tokenizer';
 
 export interface Chunk {
@@ -17,6 +17,13 @@ export interface Chunk {
   index: number;
   embedding: Float32Array;
   tokens: number;
+  /**
+   * Distinct content terms of `text`, computed once at index time. Searching
+   * used to re-tokenise and re-embed every candidate chunk on every query,
+   * which cost ~160 ms per search over a 111-chunk corpus; the terms and the
+   * embedding are both cached now.
+   */
+  terms: Set<string>;
   /**
    * The source's curated keyword field (its tags). Search scores it, but the
    * composer never quotes it: tags are synonyms, not prose, and a chunk of pure
@@ -129,6 +136,13 @@ export function chunkText(text: string, opts: ChunkOptions = {}): string[] {
  */
 const TAG_WEIGHT = 0.5;
 
+/*
+ * Scoring invariant: `search` computes the semantic half from the indexed
+ * embedding and the lexical half from `chunk.terms`, which is exactly what
+ * `hybridScore(query, chunk.text, terms)` returns — just without re-embedding
+ * the chunk. If either cache stops matching the text, scores change silently.
+ */
+
 function tagBonus(qv: Float32Array, queryTerms: string[], chunk: Chunk): number {
   if (!chunk.tagEmbedding || !chunk.tagTerms?.length || !queryTerms.length) return 0;
   const semantic = cosine(qv, chunk.tagEmbedding);
@@ -209,6 +223,7 @@ export class VectorStore {
         index: i,
         embedding,
         tokens: estimateTokens(piece),
+        terms: new Set(contentTerms(piece)),
         tags: tags || undefined,
         tagEmbedding,
         tagTerms,
@@ -256,7 +271,7 @@ export class VectorStore {
     for (const chunk of this.chunks) {
       if (kinds && !kinds.includes(this.sources.get(chunk.sourceId)?.kind ?? 'document')) continue;
       const semantic = cosine(qv, chunk.embedding);
-      const base = terms.length ? hybridScore(query, chunk.text, terms) : semantic;
+      const base = terms.length ? blend(semantic, stemCoverage(terms, chunk.terms)) : semantic;
       const score = base + tagBonus(qv, terms, chunk);
       if (score >= minScore) scored.push({ chunk, score, semantic, lexical: score - semantic });
     }

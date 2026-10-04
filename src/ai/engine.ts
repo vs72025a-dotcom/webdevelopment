@@ -14,7 +14,8 @@
 
 import { cosine, embed, hybridScore, rng } from './embeddings';
 import { KNOWLEDGE } from './knowledge';
-import { KNOWLEDGE_PACK } from './pack';
+// Type-only: the pack itself is a separate chunk, fetched after first paint.
+import type { PackEntry } from './pack';
 import { runTool, ToolResult, TOOL_MAP } from './tools';
 import { store, Hit } from './vectorStore';
 import {
@@ -96,7 +97,8 @@ export const ENGINE_MODEL_ID = 'aurora-neuro-1 (on-device)';
 /** Corpus bootstrapping: index the built-in knowledge base once. */
 let bootstrapped = false;
 let packEnabled = true;
-let packIndexed = false;
+let packEntries: PackEntry[] = [];
+const indexedPackIds = new Set<string>();
 
 function indexEntries(entries: typeof KNOWLEDGE, prefix: string): void {
   for (const entry of entries) {
@@ -121,25 +123,41 @@ export function bootstrapKnowledge(): void {
   if (bootstrapped) return;
   bootstrapped = true;
   indexEntries(KNOWLEDGE, 'kb:');
-  if (packEnabled) indexPack();
-}
-
-function indexPack(): void {
-  if (packIndexed) return;
-  packIndexed = true;
-  indexEntries(KNOWLEDGE_PACK, 'pk:');
-}
-
-function unindexPack(): void {
-  if (!packIndexed) return;
-  for (const entry of KNOWLEDGE_PACK) store.removeSource(`pk:${entry.id}`);
-  packIndexed = false;
+  indexPack();
 }
 
 /**
- * Turn the extended corpus on or off at runtime. The pack is indexed on top of
- * the core corpus because it is what the engine answers general questions from;
- * switching it off leaves only the built-in entries and your own documents.
+ * Hand the engine the extended corpus.
+ *
+ * Called after the shell has painted with a dynamically imported module, so the
+ * corpus is a separate chunk and its ~85 ms of chunk-and-embed work never
+ * delays first paint. Idempotent, and safe to call before or after the
+ * knowledge-pack setting is toggled: indexes are tracked by entry id rather than
+ * by a single boolean, so the two orders converge on the same state.
+ */
+export function installPack(entries: PackEntry[]): KnowledgePackStatus {
+  packEntries = entries;
+  indexPack();
+  return knowledgePackStatus();
+}
+
+function indexPack(): void {
+  if (!packEnabled) return;
+  for (const entry of packEntries) {
+    if (indexedPackIds.has(entry.id)) continue;
+    indexEntries([entry], 'pk:');
+    indexedPackIds.add(entry.id);
+  }
+}
+
+function unindexPack(): void {
+  for (const id of indexedPackIds) store.removeSource(`pk:${id}`);
+  indexedPackIds.clear();
+}
+
+/**
+ * Turn the extended corpus on or off at runtime. The pack supplements the core
+ * corpus; switching it off leaves only the built-in entries and your documents.
  */
 export function setKnowledgePack(enabled: boolean): KnowledgePackStatus {
   bootstrapKnowledge();
@@ -152,11 +170,18 @@ export function setKnowledgePack(enabled: boolean): KnowledgePackStatus {
 export interface KnowledgePackStatus {
   enabled: boolean;
   indexed: boolean;
+  /** How many entries the corpus will hold once the chunk has loaded. */
   entries: number;
+  loaded: boolean;
 }
 
 export function knowledgePackStatus(): KnowledgePackStatus {
-  return { enabled: packEnabled, indexed: packIndexed, entries: KNOWLEDGE_PACK.length };
+  return {
+    enabled: packEnabled,
+    indexed: packEntries.length > 0 && indexedPackIds.size === packEntries.length,
+    entries: packEntries.length,
+    loaded: packEntries.length > 0,
+  };
 }
 
 // ─────────────────────────────── intent classification ───────────────────────────────

@@ -165,24 +165,50 @@ export function rng(seed: number | string): () => number {
  * Pure cosine on hashed vectors can be fooled by shared stopwords, so we blend
  * in exact keyword overlap. This measurably improves retrieval precision.
  */
-export function hybridScore(query: string, doc: string, queryTerms: string[]): number {
-  const semantic = cosine(embed(query), embed(doc));
-  if (queryTerms.length === 0) return semantic;
-  const docTerms = new Set(contentTerms(doc));
-  /*
-   * Coverage is measured over *distinct stems*, and divided by the number of
-   * those stems. Two earlier shortcuts both inflated this term:
-   *   - contentTerms() emits a word and its stem as separate entries, so a
-   *     single match counted twice;
-   *   - dividing by the square root of the term count meant matching half of a
-   *     four-term query scored a perfect 1.0.
-   * Together they let an unrelated passage reach a lexical score of 1.0, which
-   * at weight 0.38 was enough to outrank the document that actually answered
-   * the question. Coverage is now honest: match half the query, score 0.5.
-   */
-  const wanted = new Set(queryTerms.map((t) => stem(t)));
+/**
+ * Blend weights. Kept here so the vector store and the compatibility helper
+ * below can never drift apart.
+ */
+export const SEMANTIC_WEIGHT = 0.58;
+export const LEXICAL_WEIGHT = 0.42;
+
+/**
+ * Lexical coverage of a query against a document's pre-computed term set.
+ *
+ * Coverage is measured over *distinct stems*, and divided by the number of
+ * those stems. Two earlier shortcuts both inflated this term:
+ *   - contentTerms() emits a word and its stem as separate entries, so a single
+ *     match counted twice;
+ *   - dividing by the square root of the term count meant matching half of a
+ *     four-term query scored a perfect 1.0.
+ * Together they let an unrelated passage reach a lexical score of 1.0, which at
+ * weight 0.42 was enough to outrank the document that actually answered the
+ * question. Coverage is now honest: match half the query, score 0.5.
+ */
+export function stemCoverage(queryTerms: string[], docTerms: ReadonlySet<string>): number {
+  if (!queryTerms.length) return 0;
+  const wanted = new Set<string>();
+  for (const t of queryTerms) wanted.add(stem(t));
+  if (!wanted.size) return 0;
   let hits = 0;
   for (const t of wanted) if (docTerms.has(t)) hits++;
-  const lexical = hits / wanted.size;
-  return 0.58 * semantic + 0.42 * Math.min(1, lexical);
+  return Math.min(1, hits / wanted.size);
+}
+
+/** Combine an already-computed cosine similarity with lexical coverage. */
+export function blend(semantic: number, coverage: number): number {
+  return SEMANTIC_WEIGHT * semantic + LEXICAL_WEIGHT * Math.min(1, coverage);
+}
+
+/**
+ * Convenience wrapper for callers that hold raw text rather than a vector.
+ *
+ * Prefer the vector-store path: this re-embeds both sides on every call, which
+ * is far too slow to run per chunk. `VectorStore.search` uses the indexed
+ * embedding and cached terms instead, and produces exactly the same score.
+ */
+export function hybridScore(query: string, doc: string, queryTerms: string[]): number {
+  const semantic = cosine(embed(query), embed(doc));
+  if (!queryTerms.length) return semantic;
+  return blend(semantic, stemCoverage(queryTerms, new Set(contentTerms(doc))));
 }

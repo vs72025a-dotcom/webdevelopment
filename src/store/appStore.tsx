@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  bootstrapKnowledge, generate, setKnowledgePack, ENGINE_MODEL_ID,
+  bootstrapKnowledge, generate, installPack, setKnowledgePack, ENGINE_MODEL_ID,
   type EngineEvent, type EnginePhase, type Citation, type ChatTurn,
 } from '../ai/engine';
 import { streamProvider, buildSystemPrompt, DEFAULT_CONFIG, type ProviderConfig, type ProviderEvent, type ProviderMessage } from '../ai/providers';
@@ -156,6 +156,19 @@ export function StoreProvider({ children }: { children: ReactNode }): ReactNode 
       setDocuments(docs.sort((a, b) => b.addedAt - a.addedAt));
       setActiveId(sorted[0]?.id ?? null);
       setReady(true);
+
+      /*
+       * The extended corpus is a separate chunk. Fetching it after the shell is
+       * ready keeps ~85 ms of chunk-and-embed work and 58 kB of prose off the
+       * first paint; queries in the meantime are answered from the core corpus.
+       */
+      void import('../ai/pack')
+        .then((mod) => {
+          if (!cancelled) installPack(mod.KNOWLEDGE_PACK);
+        })
+        .catch(() => {
+          /* a failed chunk fetch must not break the app; core corpus still answers */
+        });
     })();
     return () => {
       cancelled = true;

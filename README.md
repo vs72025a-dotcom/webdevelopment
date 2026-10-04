@@ -46,7 +46,9 @@ Nothing is mocked. `src/ai/` is the whole brain:
   prose. Tag coverage is what lets "deoptimization in a jit" or "xss vs csrf" reach the entry that
   actually covers the topic.
 - **`vectorStore.ts`** — semantic chunking plus a flat cosine index. Brute force beats any
-  approximate index at browser-corpus sizes.
+  approximate index at browser-corpus sizes, provided the per-chunk work is cached: each chunk
+  stores its content terms and its source's keyword field, so a search is a cosine plus a set
+  intersection rather than a re-embedding.
 - **`expression.ts`** — a recursive-descent maths parser with ~50 functions, implicit
   multiplication, right-associative `^`, `20% of 150`, variables and base prefixes. 66/66 on the
   regression suite.
@@ -104,6 +106,26 @@ Accent colour, motion (full / reduced / off) and density (cosy / compact) are in
 The theme is applied by an inline script in `index.html` before first paint, so a night theme never
 flashes white on load. `prefers-reduced-motion` is respected by default.
 
+## Speed
+
+Two measurements drove the shape of the retrieval layer, and both are worth stating because
+neither was obvious from reading the code.
+
+**Search used to cost 160 ms.** `search` computed each candidate's cosine similarity from the
+indexed embedding, then called `hybridScore(query, chunk.text, terms)` for the lexical half — which
+re-embeds the *query* and the *chunk* from scratch, on every chunk, on every query. Chunks now carry
+their content-term set from index time and the score is blended from caches, which the benchmark
+puts at **160 ms → 1 ms per search** (20 searches over a 111-chunk corpus: 3193 ms → 20 ms), with
+identical scores — the 100-question result set is bit-for-bit the same before and after.
+
+**First paint no longer waits for the corpus.** `bootstrapKnowledge()` chunked and embedded every
+entry synchronously before rendering: 209 ms, of which the extended pack was ~85 ms. The core corpus
+still indexes at boot because queries must work immediately, but the pack is a separate chunk
+fetched after the shell is ready, and each non-Chat view is `React.lazy`. Initial JavaScript went
+from **189.6 kB → 152.8 kB gzipped** (539 → 424 kB raw), with the corpus (20.6 kB gz) and the five
+views (3–8 kB gz each) arriving on demand. Every view has a skeleton fallback, and a query issued
+before the corpus chunk lands is answered from the core corpus rather than failing.
+
 ## Installable and offline
 
 The app ships a web app manifest and a service worker, registered only in production builds so it
@@ -128,7 +150,8 @@ turn and asserts the arithmetic answer (`12% of 4860 + √2025 = 628.2`) and its
 RAG question and asserts citations arrive with relevance scores, runs the retrieval tester, the code
 analyser, the art renderer (checking the render stats overlay), an agent plan and report, every
 theme including the CRT overlay, the settings diagnostics, and the command palette — finishing by
-reading the conversation back out of IndexedDB. It also checks the extended pack is indexed and
+reading the conversation back out of IndexedDB. It waits for the lazily-loaded chunks rather than
+sleeping and hoping, then checks the extended pack is indexed and
 labelled as knowledge rather than as a user document, toggles it off and on through the real
 Settings switch, imports a library fixture and confirms it is retrievable, and verifies the shipped
 manifest and service worker. 79 assertions, all passing.

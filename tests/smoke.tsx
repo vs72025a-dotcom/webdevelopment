@@ -32,6 +32,17 @@ async function settle(ms = 60): Promise<void> {
   });
 }
 
+/** Wait for a selector to appear, for lazily-loaded view chunks. */
+async function waitFor(sel: string, timeout = 4000): Promise<Element | null> {
+  const started = Date.now();
+  let hit = q(sel);
+  while (!hit && Date.now() - started < timeout) {
+    await settle(40);
+    hit = q(sel);
+  }
+  return hit;
+}
+
 function click(el: Element | null): void {
   if (!el) throw new Error('click: element missing');
   act(() => {
@@ -110,6 +121,7 @@ async function main(): Promise<void> {
   const tabs = qa('.tab');
   click(tabs[1]);
   await settle(220);
+  await waitFor('.dropzone');
   check('Documents view', text('.view-title') === 'Knowledge base' && !!q('.dropzone'));
   check('retrieval tester present', !!q('.wrap-wide input[placeholder^="e.g."]'));
   await typeInto(q('.wrap-wide input[placeholder^="e.g."]')!, 'quantisation');
@@ -118,6 +130,7 @@ async function main(): Promise<void> {
 
   click(tabs[2]);
   await settle(220);
+  await waitFor('.editor-input');
   check('Code Lab view', text('.view-title') === 'Code Lab' && !!q('.editor-input'));
   check('gutter line numbers', (q('.editor-gutter')?.textContent ?? '').includes('1'));
   click(qa('.editor-bar .btn')[0]);
@@ -127,6 +140,7 @@ async function main(): Promise<void> {
 
   click(tabs[3]);
   await settle(500);
+  await waitFor('.canvas-frame canvas');
   check('Studio view', text('.view-title') === 'Prompt Studio');
   check('canvas rendered', !!q('.canvas-frame canvas'));
   check('8 style buttons', qa('.style-btn').length === 8);
@@ -140,6 +154,7 @@ async function main(): Promise<void> {
 
   click(tabs[4]);
   await settle(220);
+  await waitFor('.chip');
   check('Agents view', text('.view-title') === 'Agents');
   check('agent example chips', qa('.chip').length >= 5);
   click(qa('.chip')[1]);
@@ -154,7 +169,9 @@ async function main(): Promise<void> {
   check('report has content', (qa('.card-pad .markdown').pop()?.textContent ?? '').length > 60);
 
   process.stdout.write('\nExtended knowledge pack\n');
+  for (let i = 0; i < 100 && !knowledgePackStatus().loaded; i++) await settle(40);
   const packOff0 = knowledgePackStatus();
+  check('corpus chunk arrived after first paint', packOff0.loaded, JSON.stringify(packOff0));
   check('pack indexed at boot', packOff0.indexed && packOff0.enabled, JSON.stringify(packOff0));
   check(`pack holds ${KNOWLEDGE_PACK.length} entries`, KNOWLEDGE_PACK.length >= 50 && packOff0.entries === KNOWLEDGE_PACK.length);
   check('pack source is in the vector store as knowledge', vectorStore.getSource('pk:p-lora')?.kind === 'knowledge');
@@ -178,6 +195,15 @@ async function main(): Promise<void> {
   check('that citation is labelled knowledge, not document', firstCite?.kind === 'knowledge', `→ ${firstCite?.kind ?? 'none'}`);
 
   process.stdout.write('\nInstallable / offline\n');
+  const distIndex = fs.existsSync('dist/index.html') ? fs.readFileSync('dist/index.html', 'utf8') : '';
+  if (distIndex) {
+    const assetDir = fs.readdirSync('dist/assets');
+    check('bundle is split into chunks', assetDir.filter((f) => f.endsWith('.js')).length >= 6, `(${assetDir.filter((f) => f.endsWith('.js')).length} js chunks)`);
+    check('knowledge corpus is its own chunk', assetDir.some((f) => /^pack-.*\.js$/.test(f)));
+    check('views are lazily imported', assetDir.some((f) => /^StudioView-/.test(f)) && assetDir.some((f) => /^SettingsView-/.test(f)));
+  } else {
+    check('bundle is split into chunks', false, '(dist not built — run npm run build first)');
+  }
   check('web app manifest shipped', fs.existsSync('public/manifest.webmanifest') && JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8')).icons.length >= 2);
   check('manifest declares standalone display', JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8')).display === 'standalone');
   const swSource = fs.readFileSync('public/sw.js', 'utf8');
@@ -188,6 +214,7 @@ async function main(): Promise<void> {
   process.stdout.write('\nSettings\n');
   click(qa('.rail-btn')[qa('.rail-btn').length - 1]);
   await settle(300);
+  await waitFor('.theme-card');
   check('Settings view', text('.view-title') === 'Settings');
   check('5 theme cards + auto', qa('.theme-card').length === 6);
   check('accent choices', qa('.chip').length >= 7);

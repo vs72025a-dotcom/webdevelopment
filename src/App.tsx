@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { Suspense, lazy, useCallback, useEffect } from 'react';
 import { Backdrop } from './theme/Backdrop';
 import { StoreProvider, useStore, type ViewId } from './store/appStore';
 import { ThemeProvider } from './theme/ThemeContext';
@@ -9,11 +9,42 @@ import { StatusBar } from './components/StatusBar';
 import { CommandPalette } from './components/CommandPalette';
 import { Toasts } from './components/Toasts';
 import { ChatView } from './views/ChatView';
-import { DocumentsView } from './views/DocumentsView';
-import { CodeLabView } from './views/CodeLabView';
-import { StudioView } from './views/StudioView';
-import { AgentView } from './views/AgentView';
-import { SettingsView } from './views/SettingsView';
+
+/*
+ * Every view beyond Chat is loaded on demand. Chat is the landing surface and
+ * already pulls the engine, so it stays in the initial chunk; Code Lab, Studio
+ * and Settings drag in the analyser, the art renderer and the provider layer
+ * respectively, none of which anyone needs before they navigate there.
+ */
+const view = <T extends Record<string, unknown>>(loader: () => Promise<T>, name: keyof T) =>
+  lazy(() => loader().then((m) => ({ default: m[name] as unknown as React.ComponentType })));
+
+const DocumentsView = view(() => import('./views/DocumentsView'), 'DocumentsView');
+const CodeLabView = view(() => import('./views/CodeLabView'), 'CodeLabView');
+const StudioView = view(() => import('./views/StudioView'), 'StudioView');
+const AgentView = view(() => import('./views/AgentView'), 'AgentView');
+const SettingsView = view(() => import('./views/SettingsView'), 'SettingsView');
+
+/** Shown for the fraction of a second a view chunk is in flight. */
+function ViewLoading({ label }: { label: string }): JSX.Element {
+  return (
+    <div className="view">
+      <div className="wrap">
+        <div className="card card-pad" aria-live="polite">
+          <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+            <span className="boot-ring" aria-hidden="true" />
+            <div>
+              <div className="card-title">Loading {label}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 2 }}>
+                Fetching this view&rsquo;s code — the rest of the app is already running.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * The shell: a fixed grid of top bar / rail / contextual panel / main surface /
@@ -105,12 +136,17 @@ function Workspace(): JSX.Element {
         <Sidebar />
 
         <main className="main">
-          {view === 'chat' ? <ChatView /> : null}
-          {view === 'documents' ? <DocumentsView /> : null}
-          {view === 'codelab' ? <CodeLabView /> : null}
-          {view === 'studio' ? <StudioView /> : null}
-          {view === 'agents' ? <AgentView /> : null}
-          {view === 'settings' ? <SettingsView /> : null}
+          {view === 'chat' ? (
+            <ChatView />
+          ) : (
+            <Suspense fallback={<ViewLoading label={VIEW_LABELS[view]} />}>
+              {view === 'documents' ? <DocumentsView /> : null}
+              {view === 'codelab' ? <CodeLabView /> : null}
+              {view === 'studio' ? <StudioView /> : null}
+              {view === 'agents' ? <AgentView /> : null}
+              {view === 'settings' ? <SettingsView /> : null}
+            </Suspense>
+          )}
         </main>
 
         <StatusBar />
@@ -137,6 +173,15 @@ function Workspace(): JSX.Element {
     </>
   );
 }
+
+const VIEW_LABELS: Record<ViewId, string> = {
+  chat: 'chat',
+  documents: 'the knowledge base',
+  codelab: 'Code Lab',
+  studio: 'Prompt Studio',
+  agents: 'Agents',
+  settings: 'Settings',
+};
 
 export default function App(): JSX.Element {
   return (
