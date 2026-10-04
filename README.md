@@ -35,9 +35,16 @@ Nothing is mocked. `src/ai/` is the whole brain:
 - **`tokenizer.ts`** — normalisation, stemming, stopword folding, British/American spelling
   folding, sentence splitting, and language detection across 20 languages.
 - **`embeddings.ts`** — deterministic 1024-d hashed embeddings (unigram + bigram + character
-  n-gram features, L2-normalised) and a hybrid score blending cosine similarity (0.62) with
-  lexical overlap (0.38). Measured on a 54-question benchmark against the 50-entry corpus:
-  **top-1 92.6 %, top-3 96.3 %, MRR 0.948**.
+  n-gram features, L2-normalised) and a hybrid score blending cosine similarity (0.58) with
+  lexical coverage (0.42). Coverage is measured over distinct query *stems* and divided by how
+  many there are — an earlier version divided by the square root of the term count and emitted
+  words alongside their stems, so matching two of four terms scored a perfect lexical 1.0 and
+  unrelated passages could outrank the right one. Fixing that alone moved end-to-end accuracy on
+  the core corpus from 76.7 % to **95.3 %**.
+- **Curated tags as a scored keyword field.** Every entry carries hand-written synonyms, and the
+  vector store scores that field alongside the body text while the composer still quotes only the
+  prose. Tag coverage is what lets "deoptimization in a jit" or "xss vs csrf" reach the entry that
+  actually covers the topic.
 - **`vectorStore.ts`** — semantic chunking plus a flat cosine index. Brute force beats any
   approximate index at browser-corpus sizes.
 - **`expression.ts`** — a recursive-descent maths parser with ~50 functions, implicit
@@ -53,10 +60,10 @@ Nothing is mocked. `src/ai/` is the whole brain:
   science; indexed at boot as retrievable, citable sources.
 - **`pack.ts`** — the extended pack: 58 more entries across machine-learning systems, the web
   platform, security, distributed data, science and practical life. Indexed on top of the core
-  corpus and switchable from Settings. Measured end to end on a 100-question set: answers whose
-  top citation is the right entry go from **15.8 % → 78.9 %** on questions only the pack can
-  answer, while core questions move **76.7 % → 74.4 %**. It also cuts ungrounded answers (8 → 3)
-  and low-confidence answers (21 → 3), so it ships on by default.
+  corpus and switchable from Settings. Measured end to end on a 100-question set (top citation
+  lands on the right entry, counting either corpus when a topic exists in both): questions only the
+  pack can answer go from **22.8 % → 94.7 %**, core questions move **95.3 % → 93.0 %**, ungrounded
+  answers drop to **zero** and low-confidence answers fall from 33 to 3. It ships on by default.
 - **`engine.ts`** — intent classification with a continuity rule for terse follow-ups, retrieval
   with query expansion, tool orchestration, and composition that cites what it used.
 - **`markdown.ts` / `highlight.ts`** — an escape-first markdown renderer (tables, task lists,

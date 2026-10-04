@@ -43,7 +43,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'app-privacy',
     title: 'Privacy and data handling',
-    tags: ['privacy', 'security', 'data', 'storage'],
+    tags: ['privacy', 'security', 'data', 'storage', 'where is my data stored', 'my data', 'local only', 'delete my data'],
     body: `By default Aurora Mind is fully local. Conversations and document indices live in IndexedDB, preferences in localStorage, and both stay on your device. The on-device engine never opens a network connection. If you add a provider key in Settings, requests go directly from your browser to that provider's endpoint over HTTPS; the key is stored in localStorage and is never sent anywhere else, and there is no proxy or telemetry server in this project. You can wipe everything at any time from Settings, which clears IndexedDB, localStorage and the in-memory vector store.`,
   },
 
@@ -57,13 +57,13 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'attention',
     title: 'Scaled dot-product attention',
-    tags: ['attention', 'math', 'softmax', 'transformer'],
+    tags: ['attention', 'math', 'softmax', 'transformer', 'attention heads', 'multi head attention', 'self attention'],
     body: `Scaled dot-product attention maps queries, keys and values to an output with the formula Attention(Q,K,V) = softmax(QK^T / sqrt(d_k)) V. The division by sqrt(d_k) prevents the dot products from growing large in magnitude, which would push the softmax into regions with tiny gradients. Multi-head attention runs h independent attention heads over linear projections of the input and concatenates the results, letting different heads specialise on syntax, coreference or long-range structure. Causal attention applies a triangular mask so position i can only see positions up to i, which is what makes autoregressive generation possible.`,
   },
   {
     id: 'tokenization-llm',
     title: 'Tokenization and BPE',
-    tags: ['tokenizer', 'bpe', 'tokens', 'vocab'],
+    tags: ['tokenizer', 'bpe', 'tokens', 'vocab', 'count letters', 'subword', 'vocabulary'],
     body: `Language models do not see characters or words; they see token ids. Byte-pair encoding starts from a vocabulary of individual bytes and repeatedly merges the most frequent adjacent pair until a target vocabulary size is reached, typically 32k to 200k tokens. The result compresses common English words to a single token while still being able to represent any string, including unseen words, code and emoji. A useful rule of thumb is that one token is roughly four characters or three-quarters of an English word, so 1000 tokens is about 750 words. Tokenization explains several model quirks: arithmetic on large numbers is hard because digits are grouped inconsistently, reversed spelling is hard because tokens are not letters, and non-Latin scripts consume more tokens per word.`,
   },
   {
@@ -147,7 +147,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'evals',
     title: 'Evaluating models',
-    tags: ['evaluation', 'benchmarks', 'mmlu', 'evals', 'testing'],
+    tags: ['evaluation', 'benchmarks', 'mmlu', 'evals', 'testing', 'evaluate an llm', 'llm evaluation', 'testing models', 'how do you evaluate', 'measuring quality', 'regression testing models'],
     body: `Benchmarks give a rough ranking but rarely predict product quality. MMLU covers 57 academic subjects, HumanEval and MBPP measure code generation pass rates, GSM8K and MATH test grade-school and competition mathematics, and HELM aggregates many tasks with a common harness. Their weaknesses are contamination, where training data overlaps test data, saturation at the top end, and a mismatch with open-ended real tasks. For an actual application, build a small golden set of representative inputs, score with a mix of exact match, rubric-based model grading and human review, and re-run it on every prompt or model change. Regression suites catch what leaderboards cannot.`,
   },
 
@@ -155,7 +155,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'javascript-core',
     title: 'JavaScript language essentials',
-    tags: ['javascript', 'js', 'es2022', 'language', 'async', 'promise'],
+    tags: ['javascript', 'js', 'es2022', 'language', 'async', 'promise', 'closure', 'closures', 'scope', 'hoisting'],
     body: `JavaScript is single-threaded with an event loop: the call stack runs synchronous code to completion, then microtasks (promise callbacks, queueMicrotask) drain fully before the next macrotask (setTimeout, I/O, events). A Promise is pending, fulfilled or rejected and settles exactly once; async/await is sugar over promises where await yields to the microtask queue. var is function-scoped and hoisted with an undefined initial value, while let and const are block-scoped and live in a temporal dead zone until declared. Equality: use === which does not coerce, and Object.is for NaN and signed zero. Values are passed by sharing, so mutating an object argument is visible to the caller. Optional chaining (?.), nullish coalescing (??), destructuring, spread and top-level await are all standard in ES2022.`,
   },
   {
@@ -191,7 +191,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'data-structures',
     title: 'Choosing a data structure',
-    tags: ['data structures', 'array', 'linked list', 'tree', 'hash map', 'heap'],
+    tags: ['data structures', 'array', 'linked list', 'tree', 'hash map', 'heap', 'lookup', 'which structure'],
     body: `Arrays give O(1) index access and excellent cache locality but O(n) insertion in the middle. Linked lists give O(1) insertion at a known node but O(n) search and poor locality, so they rarely win on real hardware. Hash maps give average O(1) lookup by key. Balanced search trees (AVL, red-black, B-tree) give O(log n) lookup plus ordered iteration and range queries; B-trees with high fan-out are what databases use because they minimise disk seeks. Heaps give O(1) minimum and O(log n) insert and extract, powering priority queues. Tries excel at prefix search on strings. Graphs are stored as adjacency lists for sparse data and adjacency matrices for dense data with O(1) edge queries.`,
   },
   {
@@ -227,7 +227,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'rest-apis',
     title: 'REST and HTTP API design',
-    tags: ['rest', 'api', 'http', 'endpoints', 'status codes'],
+    tags: ['rest', 'api', 'http', 'endpoints', 'status codes', 'api design', 'url design'],
     body: `HTTP methods carry semantics: GET is safe and cacheable, POST creates or triggers, PUT replaces a resource entirely, PATCH applies a partial update, DELETE removes. Status codes: 200 OK, 201 Created with a Location header, 204 No Content, 304 Not Modified for cache validation, 400 Bad Request, 401 Unauthenticated, 403 Forbidden, 404 Not Found, 409 Conflict, 422 Unprocessable Entity for validation failures, 429 Too Many Requests with Retry-After, and 5xx for server faults. Resources are named as plural nouns with identifiers in the path and filters in the query string. Version the API in the path or a header, paginate with cursor-based keys for large collections, and return consistent error bodies with a machine-readable code and a human message.`,
   },
   {
@@ -283,7 +283,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'solar-system',
     title: 'The solar system',
-    tags: ['astronomy', 'planets', 'solar system', 'space', 'sun'],
+    tags: ['astronomy', 'planets', 'solar system', 'space', 'sun', 'tides', 'moon', 'gravity', 'what causes tides', 'ocean tides'],
     body: `The Sun holds about 99.86 percent of the solar system's mass and fuses roughly 600 million tonnes of hydrogen into helium every second. Eight planets orbit it: the terrestrial worlds Mercury, Venus, Earth and Mars, then the gas giants Jupiter and Saturn and the ice giants Uranus and Neptune. Jupiter is the largest, with a mass greater than all other planets combined and a Great Red Spot storm wider than Earth. Saturn's rings are mostly water ice. Earth is the only world known to host life, with 71 percent of its surface covered by ocean. Beyond Neptune lies the Kuiper belt, home to Pluto and other dwarf planets, and further out the hypothesised Oort cloud that supplies long-period comets. One astronomical unit, the mean Earth-Sun distance, is about 149.6 million kilometres.`,
   },
   {
@@ -295,7 +295,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'biology-cells',
     title: 'Cell biology and DNA',
-    tags: ['biology', 'cell', 'dna', 'genetics', 'protein'],
+    tags: ['biology', 'cell', 'dna', 'genetics', 'protein', 'how cells make energy', 'mitochondria', 'atp', 'metabolism'],
     body: `The cell is the unit of life. Prokaryotes such as bacteria lack a nucleus; eukaryotes compartmentalise functions in organelles: mitochondria generate ATP through oxidative phosphorylation, the nucleus stores DNA, ribosomes translate mRNA into protein, the endoplasmic reticulum and Golgi fold and ship proteins, and lysosomes recycle waste. DNA is a double helix of two antiparallel strands held by base pairs adenine-thymine and guanine-cytosine. The central dogma is that DNA is transcribed into messenger RNA, which is translated into protein by ribosomes reading codons of three bases against transfer RNA anticodons. The genetic code is redundant, with 64 codons for 20 amino acids plus start and stop signals. The human genome is about 3.1 billion base pairs and roughly 20,000 protein-coding genes.`,
   },
 
@@ -315,7 +315,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'color-theory',
     title: 'Colour models and contrast',
-    tags: ['colour', 'color', 'contrast', 'oklch', 'hsl', 'design', 'palette'],
+    tags: ['colour', 'color', 'contrast', 'oklch', 'hsl', 'design', 'palette', 'contrast ratio', 'wcag contrast', 'readable text'],
     body: `sRGB describes colour as three gamma-encoded channels and is what CSS hex codes use, but it is not perceptually uniform: equal numeric steps do not look equally different. HSL is intuitive for humans but geometrically distorted, which is why "same lightness" HSL colours look wildly different in brightness. OKLCH fixes this with a lightness axis matched to human perception, plus chroma and hue, so a palette generated by holding L constant and rotating hue actually looks evenly bright. Contrast ratio compares relative luminance of two colours from 1:1 to 21:1; WCAG requires 4.5:1 for normal text and 3:1 for large text and UI boundaries. Black on pure white is harsh at night, which is why dark themes use a very dark blue-grey background with off-white text at around 13:1.`,
   },
   {
@@ -327,7 +327,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'writing-well',
     title: 'Clear technical writing',
-    tags: ['writing', 'documentation', 'clarity', 'communication'],
+    tags: ['writing', 'documentation', 'clarity', 'communication', 'write clearly', 'writing at work', 'business writing', 'editing'],
     body: `Clear writing is short sentences carrying one idea each, in active voice, with the subject and verb close together. Lead with the conclusion, then support it, because readers decide within the first sentence whether to continue. Prefer concrete nouns and strong verbs over nominalisations: "we decided" beats "a decision was reached". Cut hedges like "very", "quite" and "somewhat", and delete any sentence that repeats the previous one. For documentation, task-oriented headings ("Add a database", not "Database configuration") match how people actually search. Every code sample should be copy-pasteable and complete enough to run, with expected output shown, because an example that does not compile costs more time than no example at all.`,
   },
   {
@@ -339,7 +339,7 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'learning-techniques',
     title: 'Evidence-based learning',
-    tags: ['learning', 'study', 'memory', 'spaced repetition', 'recall'],
+    tags: ['learning', 'study', 'memory', 'spaced repetition', 'recall', 'flashcards'],
     body: `The strongest learning effects come from retrieval practice, spacing and interleaving. Retrieval practice means recalling information from memory rather than re-reading it; the effort of retrieval is what builds durable memory, so flashcards and self-testing beat highlighting. Spacing spreads review over increasing intervals, exploiting the forgetting curve, and typically doubles the interval after each successful recall. Interleaving mixes related topics within a session, which feels harder but produces better discrimination between similar concepts. Elaboration, explaining material in your own words and connecting it to what you already know, deepens encoding. Re-reading and massed cramming feel productive and are the least effective of the common techniques.`,
   },
 ];

@@ -169,8 +169,20 @@ export function hybridScore(query: string, doc: string, queryTerms: string[]): n
   const semantic = cosine(embed(query), embed(doc));
   if (queryTerms.length === 0) return semantic;
   const docTerms = new Set(contentTerms(doc));
+  /*
+   * Coverage is measured over *distinct stems*, and divided by the number of
+   * those stems. Two earlier shortcuts both inflated this term:
+   *   - contentTerms() emits a word and its stem as separate entries, so a
+   *     single match counted twice;
+   *   - dividing by the square root of the term count meant matching half of a
+   *     four-term query scored a perfect 1.0.
+   * Together they let an unrelated passage reach a lexical score of 1.0, which
+   * at weight 0.38 was enough to outrank the document that actually answered
+   * the question. Coverage is now honest: match half the query, score 0.5.
+   */
+  const wanted = new Set(queryTerms.map((t) => stem(t)));
   let hits = 0;
-  for (const t of queryTerms) if (docTerms.has(t) || docTerms.has(stem(t))) hits++;
-  const lexical = hits / Math.sqrt(queryTerms.length);
-  return 0.62 * semantic + 0.38 * Math.min(1, lexical);
+  for (const t of wanted) if (docTerms.has(t)) hits++;
+  const lexical = hits / wanted.size;
+  return 0.58 * semantic + 0.42 * Math.min(1, lexical);
 }

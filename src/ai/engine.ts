@@ -169,7 +169,13 @@ interface IntentScore {
 
 const PATTERNS: Array<{ intent: Intent; re: RegExp; weight: number }> = [
   { intent: 'greeting', re: /^\s*(hi|hii+|hey|hello|yo|good (morning|afternoon|evening)|howdy|namaste|thanks|thank you|cheers|bye|goodbye|see ya)\b[\s!.]*$/i, weight: 3 },
-  { intent: 'capability', re: /\b(what can you do|who are you|what are you|your name|help me|what do you do|your (features|abilities|capabilit)|how do (you|i) use|what('| a)re your tools|tell me about yourself|what is this (app|site|place))\b/i, weight: 3 },
+  {
+    intent: 'capability',
+    // Narrow on purpose: "how do I use a nonce with a CSP" asks about the web,
+    // not about this app, so the generic phrasings require a self-reference.
+    re: /\b(what can you do|what can this (app|site) do|who are you|what are you|your name|help me|what do you do|your (features|abilities|capabilit)|how do (you|i) use (this|the app|aurora|it)\b|what('| a)re your tools|what tools|tell me about yourself|what is this (app|site|place)|how does (this|the) (app|engine|thing) work)\b/i,
+    weight: 3,
+  },
   { intent: 'conversion', re: /\b(convert|conversion|how many|how much is|in terms of)\b.*\b(km|mi|kg|lb|pound|inch|feet|foot|celsius|fahrenheit|kelvin|gb|mb|tb|mph|kph|litre|gallon|acre|hectare)\b/i, weight: 2.4 },
   { intent: 'conversion', re: /\b\d+(\.\d+)?\s*(°?\s*(c|f|k)|km|mi|kg|lb|ft|in|cm|mm|gb|mb|kb|tb|mph|km\/h|kph|hours?|minutes?|days?|weeks?|years?)\b.*\b(to|in|into)\b/i, weight: 2.2 },
   { intent: 'base', re: /\b(binary|hex(adecimal)?|octal|base\s*\d{1,2}|0x[0-9a-f]+)\b/i, weight: 2 },
@@ -363,8 +369,10 @@ function retrieve(query: string, opts: { useDocuments: boolean; useKnowledge: bo
   const hits = raw
     .map((h) => {
       const src = store.getSource(h.chunk.sourceId);
-      const tagText = String(src?.meta?.tags ?? '').replace(/,/g, ' ');
-      const titleTerms = new Set(contentTerms(`${h.chunk.sourceTitle} ${tagText}`));
+      // Tags are scored inside the vector store now, so the re-rank only adds a
+      // bonus for the title itself — otherwise a tagged entry would be counted
+      // twice and could outrank the passage that actually contains the answer.
+      const titleTerms = new Set(contentTerms(h.chunk.sourceTitle));
       let overlap = 0;
       for (const t of titleTerms) if (qTerms.has(t) || qTerms.has(stem(t))) overlap++;
       const bonus = titleTerms.size ? 0.22 * (overlap / Math.min(titleTerms.size, Math.max(1, qTerms.size))) : 0;
@@ -764,6 +772,12 @@ export async function generate(
   const thinking: string[] = [];
   const toolCalls: ToolCallRecord[] = [];
   const citations: Citation[] = [];
+  // Retrieval scope, resolved once: routes other than the knowledge route can
+  // reach retrieval before it declares its own copies.
+  const retrievalOpts = {
+    useDocuments: options.useDocuments !== false,
+    useKnowledge: options.useKnowledge !== false,
+  };
 
   const note = (line: string) => {
     thinking.push(line);
@@ -1052,9 +1066,29 @@ export async function generate(
       const cm = query.match(/(#[0-9a-f]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|\b[a-z]+\b(?=\s*(colour|color)))/i);
       note('Colour route — converting spaces and computing WCAG contrast');
       const res = await callTool('convert_color', { color: cm?.[1] ?? query });
-      content = res.ok ? res.detail ?? res.summary : `Could not parse a colour. ${res.error ?? ''}\n\nTry \`#7c8cff\`, \`rgb(124 140 255)\` or \`oklch\`.`;
-      confidence = res.ok ? 0.99 : 0.3;
-      grounded = res.ok;
+      if (res.ok) {
+        content = res.detail ?? res.summary;
+        confidence = 0.99;
+        grounded = true;
+      } else {
+        // "what is contrast ratio in design" routes here on the word colour but
+        // has no colour in it — answer from the corpus instead of refusing.
+        const ret = retrieve(query, retrievalOpts);
+        if (ret.hits.length && ret.topScore >= 0.2) {
+          note(`No colour literal in the query — falling back to retrieval (top ${(ret.topScore * 100).toFixed(0)}%)`);
+          const composed = composeGrounded(query, ret.hits.slice(0, 4), 'knowledge', {
+            useDocuments: retrievalOpts.useDocuments,
+          });
+          content = composed.content;
+          citations.push(...composed.citations);
+          for (const c of citations) emit({ type: 'citation', citation: c });
+          confidence = composed.confidence;
+          grounded = true;
+        } else {
+          content = `Could not parse a colour. ${res.error ?? ''}\n\nTry \`#7c8cff\`, \`rgb(124 140 255)\` or \`oklch\`.`;
+          confidence = 0.3;
+        }
+      }
       break;
     }
 

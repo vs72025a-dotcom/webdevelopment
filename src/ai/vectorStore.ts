@@ -7,7 +7,7 @@
  */
 
 import { cosine, embed, hybridScore } from './embeddings';
-import { contentTerms, estimateTokens, splitSentences } from './tokenizer';
+import { contentTerms, estimateTokens, splitSentences, stem } from './tokenizer';
 
 export interface Chunk {
   id: string;
@@ -17,6 +17,14 @@ export interface Chunk {
   index: number;
   embedding: Float32Array;
   tokens: number;
+  /**
+   * The source's curated keyword field (its tags). Search scores it, but the
+   * composer never quotes it: tags are synonyms, not prose, and a chunk of pure
+   * keywords would otherwise be eligible as an answer sentence.
+   */
+  tags?: string;
+  tagEmbedding?: Float32Array;
+  tagTerms?: string[];
 }
 
 export interface Hit {
@@ -111,6 +119,40 @@ export function chunkText(text: string, opts: ChunkOptions = {}): string[] {
   return chunks.filter((c) => c.length > 24);
 }
 
+/**
+ * Weight of a source's curated tags in the final score.
+ *
+ * Tags are hand-written synonyms — "macrotask", "deoptimization", "rule of 72" —
+ * so they are exactly what a user's phrasing tends to miss. Without this the
+ * keyword field only affected the re-rank, which runs *after* the candidate cut,
+ * so an entry could be tagged perfectly and still never be retrieved.
+ */
+const TAG_WEIGHT = 0.5;
+
+function tagBonus(qv: Float32Array, queryTerms: string[], chunk: Chunk): number {
+  if (!chunk.tagEmbedding || !chunk.tagTerms?.length || !queryTerms.length) return 0;
+  const semantic = cosine(qv, chunk.tagEmbedding);
+  // Same stem-level coverage rule as hybridScore: a tag field has to match the
+  // query's actual content words to earn credit.
+  const wanted = new Set(queryTerms.map(stemTerm));
+  const termSet = new Set(chunk.tagTerms);
+  let hits = 0;
+  for (const t of wanted) if (termSet.has(t)) hits++;
+  const lexical = hits / wanted.size;
+  return TAG_WEIGHT * (0.55 * semantic + 0.45 * Math.min(1, lexical));
+}
+
+const stemCache = new Map<string, string>();
+function stemTerm(t: string): string {
+  let hit = stemCache.get(t);
+  if (hit === undefined) {
+    hit = stem(t);
+    if (stemCache.size > 4000) stemCache.clear();
+    stemCache.set(t, hit);
+  }
+  return hit;
+}
+
 export class VectorStore {
   private chunks: Chunk[] = [];
   private byId = new Map<string, Chunk>();
@@ -149,6 +191,10 @@ export class VectorStore {
     const pieces = precomputed
       ? precomputed.map((p) => p.text)
       : chunkText(text, options);
+    const tags = String(record.meta?.tags ?? '').replace(/,/g, ' ').trim();
+    const tagEmbedding = tags ? cachedEmbed(tags) : undefined;
+    const tagTerms = tags ? [...new Set(contentTerms(tags))] : undefined;
+
     pieces.forEach((piece, i) => {
       const id = `${record.id}#${i}`;
       const embedding =
@@ -163,6 +209,9 @@ export class VectorStore {
         index: i,
         embedding,
         tokens: estimateTokens(piece),
+        tags: tags || undefined,
+        tagEmbedding,
+        tagTerms,
       };
       this.chunks.push(chunk);
       this.byId.set(id, chunk);
@@ -207,9 +256,8 @@ export class VectorStore {
     for (const chunk of this.chunks) {
       if (kinds && !kinds.includes(this.sources.get(chunk.sourceId)?.kind ?? 'document')) continue;
       const semantic = cosine(qv, chunk.embedding);
-      const score = terms.length
-        ? hybridScore(query, chunk.text, terms)
-        : semantic;
+      const base = terms.length ? hybridScore(query, chunk.text, terms) : semantic;
+      const score = base + tagBonus(qv, terms, chunk);
       if (score >= minScore) scored.push({ chunk, score, semantic, lexical: score - semantic });
     }
     scored.sort((a, b) => b.score - a.score);
