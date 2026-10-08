@@ -195,6 +195,13 @@ async function main(): Promise<void> {
   check('that citation is labelled knowledge, not document', firstCite?.kind === 'knowledge', `→ ${firstCite?.kind ?? 'none'}`);
 
   process.stdout.write('\nInstallable / offline\n');
+  if (!fs.existsSync('dist/index.html')) {
+    try {
+      require('child_process').execSync('npx vite build', { stdio: 'ignore' });
+    } catch {
+      /* non-fatal; the check below reports if dist is still missing */
+    }
+  }
   const distIndex = fs.existsSync('dist/index.html') ? fs.readFileSync('dist/index.html', 'utf8') : '';
   if (distIndex) {
     const assetDir = fs.readdirSync('dist/assets');

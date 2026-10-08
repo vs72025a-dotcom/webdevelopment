@@ -4,6 +4,7 @@ import { db } from '../store/db';
 import { PROVIDER_PRESETS } from '../ai/providers';
 import { useTheme } from '../theme/ThemeContext';
 import { Icon } from './Icons';
+import { emit, EVENTS } from '../lib/bus';
 
 /**
  * Status bar — the instrument panel.
@@ -50,7 +51,12 @@ export function StatusBar(): JSX.Element {
 
   return (
     <footer className="statusbar">
-      <span className="status-item" title={remote ? 'Answers stream from your configured provider.' : 'All inference happens in this browser tab.'}>
+      <span
+        className="status-item"
+        onClick={() => store.setView('settings')}
+        style={{ cursor: 'pointer' }}
+        title={remote ? 'Answers stream from your configured provider. Click to configure.' : 'All inference happens in this browser tab. Click for engine settings.'}
+      >
         <span className="status-dot" style={busy ? { background: 'var(--accent)' } : undefined} />
         <Icon name={remote ? 'globe' : 'cpu'} size={12} />
         {ready ? engineLabel : 'starting…'}
@@ -58,14 +64,27 @@ export function StatusBar(): JSX.Element {
 
       <span className="status-sep" />
 
-      <span className="status-item" title="Passages available to retrieval">
+      <span
+        className="status-item"
+        onClick={() => store.setView('documents')}
+        style={{ cursor: 'pointer' }}
+        title="Passages available to retrieval — click to view knowledge base"
+      >
         <Icon name="db" size={12} />
         {indexStats.chunks.toLocaleString()} vectors · {indexStats.sources} sources
       </span>
 
       <span className="status-sep" />
 
-      <span className="status-item" title="Persisted in IndexedDB on this device">
+      <span
+        className="status-item"
+        onClick={() => {
+          store.setView('settings');
+          window.setTimeout(() => emit(EVENTS.settingsSection, 'data'), 60);
+        }}
+        style={{ cursor: 'pointer' }}
+        title="Persisted in IndexedDB on this device — click to inspect storage"
+      >
         <Icon name="save" size={12} />
         {conversations.length} chats · {messages} msgs · {bytes(usage)}
       </span>
@@ -79,14 +98,27 @@ export function StatusBar(): JSX.Element {
         </span>
       ) : null}
 
-      <span className="status-item" title={meta.description}>
+      <span
+        className="status-item"
+        onClick={() => {
+          store.setView('settings');
+          window.setTimeout(() => emit(EVENTS.settingsSection, 'appearance'), 60);
+        }}
+        style={{ cursor: 'pointer' }}
+        title={`${meta.description} — click to view appearance settings`}
+      >
         <Icon name="palette" size={12} />
         {meta.label}
       </span>
 
       <span className="status-sep" />
 
-      <span className="status-item">
+      <span
+        className="status-item"
+        onClick={() => store.setPaletteOpen(true)}
+        style={{ cursor: 'pointer' }}
+        title="Open command palette (⌘K / Ctrl+K)"
+      >
         <kbd>⌘K</kbd> commands
       </span>
     </footer>
