@@ -6,7 +6,7 @@ import { Composer, type ComposerHandle } from '../components/Composer';
 import { MessageItem } from '../components/MessageItem';
 import { Markdown } from '../components/Markdown';
 import { useSpeech } from '../lib/speech';
-import { takePrompt } from '../lib/bus';
+import { emit, EVENTS, takePrompt } from '../lib/bus';
 
 /**
  * Chat — the primary surface.
@@ -287,8 +287,21 @@ export function ChatView(): JSX.Element {
             </div>
 
             {totalTokens > 0 ? (
-              <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-faint)', textAlign: 'center', padding: '6px 0 2px' }}>
-                {messages.length} messages · {totalTokens.toLocaleString()} tokens in this conversation
+              <div style={{ textAlign: 'center', padding: '6px 0 2px' }}>
+                <button
+                  type="button"
+                  className="mono chat-telemetry-pill"
+                  onClick={() => {
+                    store.setView('settings');
+                    window.setTimeout(() => emit(EVENTS.settingsSection, 'telemetry'), 60);
+                  }}
+                  title="View full AI Telemetry & Observability"
+                >
+                  <Icon name="gauge" size={11} />
+                  <span>
+                    {messages.length} messages · {totalTokens.toLocaleString()} tokens · view telemetry
+                  </span>
+                </button>
               </div>
             ) : null}
           </div>

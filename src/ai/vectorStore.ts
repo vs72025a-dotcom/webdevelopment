@@ -271,9 +271,10 @@ export class VectorStore {
     for (const chunk of this.chunks) {
       if (kinds && !kinds.includes(this.sources.get(chunk.sourceId)?.kind ?? 'document')) continue;
       const semantic = cosine(qv, chunk.embedding);
-      const base = terms.length ? blend(semantic, stemCoverage(terms, chunk.terms)) : semantic;
+      const coverage = terms.length ? stemCoverage(terms, chunk.terms) : 0;
+      const base = terms.length ? blend(semantic, coverage) : semantic;
       const score = base + tagBonus(qv, terms, chunk);
-      if (score >= minScore) scored.push({ chunk, score, semantic, lexical: score - semantic });
+      if (score >= minScore) scored.push({ chunk, score, semantic, lexical: coverage });
     }
     scored.sort((a, b) => b.score - a.score);
     return this.dedupe(scored.slice(0, k * 2), k);

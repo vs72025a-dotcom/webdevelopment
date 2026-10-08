@@ -3,6 +3,7 @@ import { useStore, type ViewId } from '../store/appStore';
 import { getActivity, onActivity, type ActivityKind } from '../theme/themes';
 import { useTheme } from '../theme/ThemeContext';
 import { Icon, Logo } from './Icons';
+import { emit, EVENTS } from '../lib/bus';
 
 /**
  * Top bar: brand, the view tabs, and a live activity meter.
@@ -36,13 +37,16 @@ const PHASE_LABEL: Record<string, string> = {
   embedding: 'embedding',
 };
 
-function ActivityMeter({ phase }: { phase: string | null }): JSX.Element {
+function ActivityMeter({ phase, onClick }: { phase: string | null; onClick?: () => void }): JSX.Element {
   const [state, setState] = useState<{ level: number; kind: ActivityKind }>(() => getActivity());
 
   useEffect(() => {
     const off = onActivity((level, kind) => setState({ level, kind }));
     // The bus only fires on events; poll lightly so the decay is visible.
-    const t = window.setInterval(() => setState(getActivity()), 120);
+    const t = window.setInterval(() => {
+      const cur = getActivity();
+      setState((prev) => (prev.level === cur.level && prev.kind === cur.kind ? prev : cur));
+    }, 150);
     return () => {
       off();
       window.clearInterval(t);
@@ -53,7 +57,18 @@ function ActivityMeter({ phase }: { phase: string | null }): JSX.Element {
   const lit = Math.round(state.level * bars.length);
 
   return (
-    <div className="activity" data-state={state.kind} title={`Engine activity: ${(state.level * 100).toFixed(0)}%`}>
+    <div
+      className="activity"
+      data-state={state.kind}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) onClick();
+      }}
+      style={onClick ? { cursor: 'pointer' } : undefined}
+      title={`Engine activity: ${(state.level * 100).toFixed(0)}% — click to view telemetry`}
+    >
       <span className="activity-orb" />
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {phase ? (PHASE_LABEL[phase] ?? phase) : state.kind === 'idle' ? 'idle' : state.kind}
@@ -111,7 +126,13 @@ export function TopBar(): JSX.Element {
 
       <span className="topbar-spacer" />
 
-      <ActivityMeter phase={phase} />
+      <ActivityMeter
+        phase={phase}
+        onClick={() => {
+          setView('settings');
+          window.setTimeout(() => emit(EVENTS.settingsSection, 'telemetry'), 60);
+        }}
+      />
 
       <button
         type="button"

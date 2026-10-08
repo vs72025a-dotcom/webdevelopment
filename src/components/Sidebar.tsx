@@ -538,6 +538,7 @@ function AgentPanel(): JSX.Element {
 const SETTINGS_SECTIONS = [
   { id: 'appearance', label: 'Appearance & night modes', icon: 'moon' },
   { id: 'engine', label: 'On-device engine', icon: 'cpu' },
+  { id: 'telemetry', label: 'AI Telemetry & Observability', icon: 'gauge' },
   { id: 'provider', label: 'Model provider & API key', icon: 'key' },
   { id: 'voice', label: 'Voice', icon: 'mic' },
   { id: 'data', label: 'Data & privacy', icon: 'shield' },

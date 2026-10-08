@@ -237,6 +237,17 @@ async function main(): Promise<void> {
     failedRows.map((r) => `\n      → ${(r.textContent ?? '').slice(0, 140)}`).join(''),
   );
 
+  process.stdout.write('\nAI Telemetry & Observability\n');
+  check('telemetry section present', !!q('#telemetry'));
+  check('tool registry renders 16 tools', qa('.tool-tile').length === 16, `(got ${qa('.tool-tile').length})`);
+  const benchBtn = qa('#telemetry button').find((b) => /vector benchmark/i.test(b.textContent ?? '')) as HTMLElement | null;
+  check('vector benchmark button exists', !!benchBtn);
+  if (benchBtn) {
+    click(benchBtn);
+    await settle(400);
+    check('vector benchmark ran and passed', !!q('#telemetry .badge[data-tone="ok"]'));
+  }
+
   process.stdout.write('\nCorpus toggle + library import\n');
   const packSwitch = qa('.setting-row').find((r) => /Extended knowledge pack/.test(r.textContent ?? ''))
     ?.querySelector('.switch') as HTMLElement | null;

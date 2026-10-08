@@ -9,7 +9,7 @@ optionally hand the wheel to a frontier model when you paste an API key.
 npm install
 npm run dev        # http://localhost:5173 — binds 0.0.0.0
 npm run build      # tsc -b && vite build
-npm test           # typecheck + the jsdom runtime smoke test (79 assertions)
+npm test           # typecheck + the jsdom runtime smoke test (87 assertions)
 ```
 
 ---
@@ -23,7 +23,7 @@ npm test           # typecheck + the jsdom runtime smoke test (79 assertions)
 | **Code Lab** | A gutter-numbered editor with a highlighter preview, deterministic static analysis from our own parser (structure, complexity, smells), and Explain / Review / Tests / Refactor through the engine. |
 | **Prompt Studio** | A structured prompt compiles into a spec (style, palette, density, chaos, glow, grain, scale, per-term TF-IDF weights, negative terms) that drives a seeded renderer — value-noise nebulae, marching-squares topography, flow fields, circuits. Same seed, same pixels. Export PNG or save to the gallery. |
 | **Agents** | A goal is decomposed into steps, each step names its tool and arguments, the tools really execute, and the report is written only from what they returned. Every step shows its own output and timing. |
-| **Settings** | Theme and accent, motion and density, engine retrieval toggles, provider configuration with a live connection probe, voice, storage usage, JSON export, and **diagnostics that run live assertions** against the calculator, unit converter, colour engine, code analyser, retrieval index, grounding path and persistence. |
+| **Settings** | Theme and accent, motion and density, engine retrieval toggles, provider configuration with a live connection probe, voice, storage usage, JSON export, **AI Telemetry & Observability** (real-time tokens in/out, turn latencies, tok/s throughput, grounding veracity, intent distribution matrix, live 50-query vector store benchmark, and the 16 on-device tools registry), and **diagnostics that run live assertions** against the calculator, unit converter, colour engine, code analyser, retrieval index, grounding path and persistence. |
 
 Global: `⌘K` command palette (also searches your conversations and documents), `⌘1–6` to jump
 views, `⌘B` panel, `/` to focus the composer, `⌘⏎` to run in Code Lab and Agents.
@@ -154,7 +154,7 @@ reading the conversation back out of IndexedDB. It waits for the lazily-loaded c
 sleeping and hoping, then checks the extended pack is indexed and
 labelled as knowledge rather than as a user document, toggles it off and on through the real
 Settings switch, imports a library fixture and confirms it is retrievable, and verifies the shipped
-manifest and service worker. 79 assertions, all passing.
+manifest and service worker, the AI Telemetry & Observability suite, and the live 50-query vector retrieval benchmark. 87 assertions, all passing.
 
 The scratch harnesses under `.scratch/` (gitignored) cover the maths parser, unit conversion,
 markdown safety, the highlighter, the retrieval benchmark, the extended-pack ablation study and

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { THEMES, type ThemeChoice } from '../theme/themes';
 import { useTheme } from '../theme/ThemeContext';
 import { useStore, type ViewId } from '../store/appStore';
-import { queuePrompt } from '../lib/bus';
+import { emit, EVENTS, queuePrompt } from '../lib/bus';
 import { Icon } from './Icons';
 
 /**
@@ -98,6 +98,30 @@ export function CommandPalette(): JSX.Element | null {
         keywords: 'navigate switch tab open',
         run: () => store.setView(v.id),
       })),
+      {
+        id: 'telemetry',
+        group: 'Observability',
+        title: 'AI Telemetry & Observability',
+        hint: 'Session tokens, latencies, intent breakdown, vector health',
+        icon: 'gauge',
+        keywords: 'telemetry observability stats performance latency tokens',
+        run: () => {
+          store.setView('settings');
+          window.setTimeout(() => emit(EVENTS.settingsSection, 'telemetry'), 60);
+        },
+      },
+      {
+        id: 'vector-bench',
+        group: 'Observability',
+        title: 'Run vector search benchmark',
+        hint: 'Measure retrieval latency on indexed corpus',
+        icon: 'db',
+        keywords: 'benchmark speed test vector search latency perf',
+        run: () => {
+          store.setView('settings');
+          window.setTimeout(() => emit(EVENTS.settingsSection, 'telemetry'), 60);
+        },
+      },
       {
         id: 'new-chat',
         group: 'Actions',
