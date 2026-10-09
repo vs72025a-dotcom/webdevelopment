@@ -89,6 +89,13 @@ async function main(): Promise<void> {
   check('hero shown on empty thread', !!q('.hero'));
   check('hero starter cards', qa('.hero-card').length === 6);
   check('composer present', !!q('.composer-text'));
+  const compEl = q('.composer');
+  compEl?.dispatchEvent(new w.CustomEvent('dragover', { bubbles: true }));
+  await settle(20);
+  check('composer drag state active', compEl?.getAttribute('data-drag') === 'true');
+  compEl?.dispatchEvent(new w.CustomEvent('dragleave', { bubbles: true }));
+  await settle(20);
+  check('composer drag state reset', !compEl?.hasAttribute('data-drag'));
 
   const composer = q('.composer-text') as HTMLTextAreaElement;
   await typeInto(composer, 'What is 12% of 4860 plus sqrt(2025)?');

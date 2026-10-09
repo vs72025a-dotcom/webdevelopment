@@ -34,6 +34,7 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
 ): JSX.Element {
   const [value, setValue] = useState('');
   const [dictation, setDictation] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
 
@@ -108,7 +109,22 @@ export const Composer = forwardRef<ComposerHandle, ComposerProps>(function Compo
         </div>
       ) : null}
 
-      <div className="composer">
+      <div
+        className="composer"
+        data-drag={dragOver ? 'true' : undefined}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (e.dataTransfer.files?.length) {
+            onFiles(e.dataTransfer.files);
+          }
+        }}
+      >
         <textarea
           ref={ta}
           className="composer-text"

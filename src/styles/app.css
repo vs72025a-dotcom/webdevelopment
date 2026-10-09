@@ -1138,6 +1138,12 @@ sup.cite {
   overflow: hidden;
 }
 .composer:focus-within { border-color: var(--accent-line); box-shadow: var(--shadow), var(--ring); }
+.composer[data-drag='true'] {
+  border-color: var(--accent);
+  box-shadow: var(--shadow), 0 0 0 2px var(--accent-line);
+  background: var(--surface-2);
+}
+
 .composer-text {
   width: 100%;
   border: 0;
