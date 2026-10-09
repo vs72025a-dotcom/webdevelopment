@@ -54,6 +54,7 @@ interface StoreValue {
   panelOpen: boolean;
   setPanelOpen: (v: boolean) => void;
   newConversation: (seed?: string) => string;
+  forkConversation: (convId: string, upToMessageId: string) => Promise<string>;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
   renameConversation: (id: string, title: string) => void;
@@ -277,6 +278,30 @@ export function StoreProvider({ children }: { children: ReactNode }): ReactNode 
       patchConversation(id, (c) => ({ ...c, title: title.trim() || c.title, updatedAt: Date.now() }));
     },
     [patchConversation],
+  );
+
+  const forkConversation = useCallback(
+    async (convId: string, upToMessageId: string) => {
+      const conv = conversations.find((c) => c.id === convId);
+      if (!conv) return '';
+      const idx = conv.messages.findIndex((m) => m.id === upToMessageId);
+      const sliced = idx >= 0 ? conv.messages.slice(0, idx + 1) : [...conv.messages];
+      const forked: Conversation = {
+        id: uid('c'),
+        title: `${conv.title} (fork)`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        pinned: false,
+        messages: sliced.map((m) => ({ ...m, id: uid('m') })),
+      };
+      await db.put(STORE.conversations, forked);
+      setConversations((l) => [forked, ...l]);
+      setActiveId(forked.id);
+      setView('chat');
+      toast('ok', 'Forked conversation', `Created a new branch with ${forked.messages.length} messages.`);
+      return forked.id;
+    },
+    [conversations, toast],
   );
 
   const togglePin = useCallback(
@@ -785,6 +810,7 @@ export function StoreProvider({ children }: { children: ReactNode }): ReactNode 
     panelOpen,
     setPanelOpen,
     newConversation,
+    forkConversation,
     selectConversation,
     deleteConversation,
     renameConversation,

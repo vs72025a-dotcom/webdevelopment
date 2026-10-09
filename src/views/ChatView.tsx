@@ -267,6 +267,9 @@ export function ChatView(): JSX.Element {
                   onRegenerate={(id) => void store.regenerate(id)}
                   onDelete={(id) => store.deleteMessage(id)}
                   onEdit={(id, content) => void store.editMessage(id, content)}
+                  onFork={(id) => {
+                    if (active) void store.forkConversation(active.id, id);
+                  }}
                   onSpeak={(text) => onSpeak(m.id, text)}
                   onCiteJump={setCitation}
                 />

@@ -114,6 +114,13 @@ async function main(): Promise<void> {
   check('message stats rendered', /tok|s$/.test(qa('.msg-meta').map((m) => m.textContent).join(' ')));
   check('conversation appears in panel', qa('.conv-row').length >= 1);
   check('statusbar counted the conversation', /1 chats/.test(text('.statusbar')));
+  const branchBtn = qa('.msg-actions button').find((b) => /branch/i.test(b.getAttribute('title') ?? '')) as HTMLElement | null;
+  check('branch conversation button present', !!branchBtn);
+  if (branchBtn) {
+    click(branchBtn);
+    await settle(400);
+    check('branched conversation created', /2 chats/.test(text('.statusbar')));
+  }
 
   process.stdout.write('\nRetrieval + citations\n');
   await typeInto(q('.composer-text')!, 'How does retrieval-augmented generation reduce hallucination?');

@@ -62,6 +62,7 @@ export interface MessageItemProps {
   onSpeak: (text: string) => void;
   speaking: boolean;
   onCiteJump: (c: Citation) => void;
+  onFork?: (id: string) => void;
   index?: number;
   total?: number;
 }
@@ -74,6 +75,7 @@ export const MessageItem = memo(function MessageItem({
   onSpeak,
   speaking,
   onCiteJump,
+  onFork,
 }: MessageItemProps): JSX.Element {
   const [traceOpen, setTraceOpen] = useState(false);
   const [openTools, setOpenTools] = useState<Record<string, boolean>>({});
@@ -311,6 +313,16 @@ export const MessageItem = memo(function MessageItem({
             <button type="button" className="btn btn-ghost btn-sm" onClick={onCopy} title="Copy message">
               <Icon name={copied ? 'check' : 'copy'} size={13} />
             </button>
+            {onFork && !live ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => onFork(message.id)}
+                title="Branch conversation from this message"
+              >
+                <Icon name="branch" size={13} />
+              </button>
+            ) : null}
             {!isUser ? (
               <button
                 type="button"
