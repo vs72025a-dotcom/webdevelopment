@@ -92,6 +92,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **🪔 Seasonal wrap drop** — a limited-edition wrap style rotates every month (Diwali Luxe, Holi Burst, Christmas Joy…) in both gift pickers
 
+**🧠 Autopilot smart-pause** — autopilot skips a cycle when you recently bought the same item manually ("still have stock!"), with a per-item 🧠 toggle
+
+**💌 Rider thank-you notes** — every tip earns a personal note from your rider (6 rotating notes, EN+HI), saved on the order and shown in tracking
+
+**🎁 Gift-preview cards** — live visual gift cards in the cart gift box, subscription gifting, and wrapped-order tracking: style gradient + occasion + message + recipient
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs

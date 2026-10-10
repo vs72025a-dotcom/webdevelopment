@@ -368,8 +368,8 @@ function openSubs(){
   openModal('subModal');
   $$('[data-boxsub]',box).forEach(b=>b.onclick=()=>{ addBox(b.dataset.boxsub); openSubs(); });
   bindBuilder(box);
-  const gt = $('#giftTo'); if(gt) gt.oninput = ()=>{ giftDraft.to = gt.value; };
-  const gm = $('#giftMsg'); if(gm) gm.oninput = ()=>{ giftDraft.msg = gm.value; };
+  const gt = $('#giftTo',box); if(gt) gt.oninput = ()=>{ giftDraft.to = gt.value; const pt=$('#giftPrevTo',box); if(pt) pt.textContent=t('prevTo')+' '+(gt.value||'🎁'); };
+  const gm = $('#giftMsg',box); if(gm) gm.oninput = ()=>{ giftDraft.msg = gm.value; const pm=$('#giftPrevMsg',box); if(pm) pm.textContent='"'+(gm.value||'…')+'"'; };
   $$('[data-gstart]',box).forEach(b=>b.onclick=()=>{ giftDraft.startIn = +b.dataset.gstart; openSubs(); });
   const gw = $('#giftWrapOn'); if(gw) gw.onchange = ()=>{ giftDraft.wrap = gw.checked; openSubs(); };
   const go2 = $('#giftOcc'); if(go2) go2.onchange = ()=>{ giftDraft.occasion = +go2.value; };
@@ -382,6 +382,7 @@ function openSubs(){
   $$('[data-subgift]',box).forEach(b=>b.onclick=()=>{ subGiftId=b.dataset.subgift; giftDraft={to:'',msg:'',startIn:7,wrap:false,occasion:0,wrapStyle:'classic'}; openSubs(); });
   $$('[data-pilotpause]',box).forEach(b=>b.onclick=()=>{ const a=pilots.find(x=>x.id===b.dataset.pilotpause); if(a){ a.active=a.active===false?true:false; if(a.active) a.nextTs=Date.now()+a.cycle*864e5; savePilots(); cloudUp(); openSubs(); } });
   $$('[data-pilotdel]',box).forEach(b=>b.onclick=()=>{ pilots=pilots.filter(x=>x.id!==b.dataset.pilotdel); savePilots(); cloudUp(); openSubs(); });
+  $$('[data-pilotsmart]',box).forEach(b=>b.onclick=()=>{ const a=pilots.find(x=>x.id===b.dataset.pilotsmart); if(a){ a.smart=a.smart===false?true:false; savePilots(); cloudUp(); openSubs(); } });
 }
 function applyReferral(code){
   code = String(code||'').trim().toUpperCase().replace(/^AW-/,'');
@@ -538,6 +539,7 @@ function giftFormHTML(){
     ${giftDraft.wrap?`<small class="muted">${t('wrapTitle')}</small><div class="slot-pills" style="margin:6px 0 10px">${allWrapStyles().map(st=>`<button class="slot-pill ${(giftDraft.wrapStyle||'classic')===st.id?'sel':''}" data-gwstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}${st.m!==undefined?` • ${t('wrapLimited')}`:''}</small></button>`).join('')}</div>`:''}
     <small class="muted">${t('giftStart')}</small>
     <div class="slot-pills" style="margin:6px 0 10px">${[1,3,7,30].map(d=>`<button class="slot-pill ${giftDraft.startIn==d?'sel':''}" data-gstart="${d}">${giftStartLabel(d)}</button>`).join('')}</div>
+    ${giftDraft.wrap?giftPreviewHTML({style:giftDraft.wrapStyle, occasion:giftDraft.occasion, msg:giftDraft.msg, to:giftDraft.to||'🎁'}):''}
     <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1" id="giftSave">🎁 ${t('giftSave')}</button><button class="btn ghost" id="giftCancel">${t('giftCancel')}</button></div></div>`;
 }
 function saveGiftSub(){
@@ -556,8 +558,11 @@ function tipRider(o, amt){
   const r = riderFor(o);
   riderTips[r.name] = (riderTips[r.name]||0) + o.tip;
   tipCounts[r.name] = (tipCounts[r.name]||0) + 1;
+  const nn = RIDER_NOTES[(tipCounts[r.name]-1) % RIDER_NOTES.length] || RIDER_NOTES[0];
+  o.thanks = { i:RIDER_NOTES.indexOf(nn), ts:Date.now() };
   saveTips(); saveTipCounts(); saveOrders(); cloudUp();
   notify(`💰 ${t('tipThanks')}`, `${r.name} • ${fmt(o.tip)} 🙏`, '💰');
+  notify(`💌 ${t('thanksTitle')} — ${r.name}`, HI()?nn.hi:nn.en, '💌');
   return true;
 }
 function tipBoardHTML(o){
@@ -578,6 +583,31 @@ function lastQty(pid){
   return 1;
 }
 function pilotFor(pid){ return pilots.find(a=>a.pid===pid); }
+function pilotSmartSkip(a){
+  if(!a || a.smart===false) return false;
+  let lastManual = 0;
+  (orders||[]).forEach(o=>{
+    if(o.pilotId || o.subId || !o.placedAt) return;
+    if((o.items||[]).some(i=>i.id===a.pid) && o.placedAt > lastManual) lastManual = o.placedAt;
+  });
+  if(!lastManual) return false;
+  return (Date.now()-lastManual) < Math.max(3, (a.cycle||14)*0.4)*864e5;
+}
+const WRAP_SKINS = { classic:['#f43f5e','#881337'], birthday:['#8b5cf6','#db2777'], festival:['#f59e0b','#b91c1c'], premium:['#1e293b','#b45309'] };
+function giftPreviewHTML(g){
+  g = g||{};
+  const st = allWrapStyles().find(x=>x.id===(g.style||'classic')) || GIFT_STYLES[0];
+  const skin = WRAP_SKINS[st.id] || ['#0284c7','#7c3aed'];
+  return `<div class="gift-prev" style="background:linear-gradient(135deg,${skin[0]},${skin[1]})"><span class="gp-e">${st.e}</span>
+    <b>${esc(occName(g.occasion||0))} • ${esc(HI()?st.hi:st.en)}</b>
+    ${g.to?`<small id="giftPrevTo">${t('prevTo')} ${esc(g.to)}</small>`:''}
+    <p id="giftPrevMsg">"${esc(g.msg||'…')}"</p></div>`;
+}
+function thanksHTML(o){
+  if(!o || !o.thanks) return '';
+  const n = RIDER_NOTES[o.thanks.i] || RIDER_NOTES[0];
+  return `<div class="thanks-note"><b>💌 ${t('thanksTitle')}</b><p>"${esc(HI()?n.hi:n.en)}"</p></div>`;
+}
 function togglePilot(pid){
   const p = getP(pid); if(!p) return null;
   let a = pilotFor(pid);
@@ -595,6 +625,7 @@ function fulfillPilot(){
   pilots.forEach(a=>{
     if(!a || a.active===false || (a.nextTs||0) > Date.now()) return;
     const p = getP(a.pid); if(!p) return;
+    if(pilotSmartSkip(a)){ a.nextTs = Date.now()+a.cycle*864e5; savePilots(); notify('🧠 '+t('pilotSmart'), `${p.e} ${p.n} • ${t('pilotSkip')}`, '🧠'); return; }
     const addr = addrs[0] ? { name:addrs[0].name, phone:addrs[0].phone, line:addrs[0].line, city:addrs[0].city, pin:addrs[0].pin }
       : { name:(user&&user.name)||'Subscriber', phone:(user&&user.phone)||'', line:'', city:location.n, pin:location.pin };
     const sub = p.p*a.qty, disc = Math.round(sub*SUB_SAVE_PCT/100);
@@ -628,7 +659,7 @@ function pilotHTML(){
     const p = getP(a.pid); const nm = p?`${p.e} ${p.n}`:'';
     const paused = a.active===false;
     return `<div class="split-row"><div style="flex:1"><b>${esc(nm)} × ${a.qty}</b><br/><small class="muted">~${a.cycle} ${t('reDays')} • ${t('pilotNext')}: ${new Date(a.nextTs).toLocaleDateString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'})}</small><br/><span class="status ${paused?'st-placed':'st-delivered'}" style="font-size:11px">${paused?t('subPaused'):t('subActive')}</span></div>
-    <div class="sub-btns"><button class="btn secondary sm" data-pilotpause="${a.id}">${paused?'▶ '+t('subResume'):t('subPause')}</button><button class="btn danger-ghost sm" data-pilotdel="${a.id}">✕</button></div></div>`; }).join('')}</div>`;
+    <div class="sub-btns"><button class="btn ${a.smart===false?'ghost':'secondary'} sm" data-pilotsmart="${a.id}" title="${t('pilotSmart')}">🧠</button><button class="btn secondary sm" data-pilotpause="${a.id}">${paused?'▶ '+t('subResume'):t('subPause')}</button><button class="btn danger-ghost sm" data-pilotdel="${a.id}">✕</button></div></div>`; }).join('')}</div>`;
 }
 function reorderSuggestions(){
   const byPid = {};
@@ -690,7 +721,7 @@ function spotlightHTML(){
 function tipHTML(o){
   if(!o || o.status!==4) return '';
   const r = riderFor(o);
-  if(o.tip) return `<div class="rev"><b>💰 ${t('tipThanks')}</b>${fanBadge(r.name)?` <span class="status st-delivered">${fanBadge(r.name)}</span>`:''}<p>${r.name} • ${fmt(o.tip)} 🙏 • ${fmt(riderTips[r.name]||o.tip)} ${t('tipTotal')}</p>${tipBoardHTML(o)}</div>`;
+  if(o.tip) return `<div class="rev"><b>💰 ${t('tipThanks')}</b>${fanBadge(r.name)?` <span class="status st-delivered">${fanBadge(r.name)}</span>`:''}<p>${r.name} • ${fmt(o.tip)} 🙏 • ${fmt(riderTips[r.name]||o.tip)} ${t('tipTotal')}</p>${thanksHTML(o)}${tipBoardHTML(o)}</div>`;
   return `<div class="rev"><b>💰 ${t('tipTitle')} — ${r.name}</b>
     <div class="slot-pills" style="margin:10px 0">${TIP_AMOUNTS.map(a=>`<button class="slot-pill" data-tipamt="${a}">${fmt(a)}</button>`).join('')}</div>
     <div class="coupon-box"><input id="tipCustom" type="number" min="1" max="1000" placeholder="${t('tipCustom')} (₹)"/><button class="btn primary sm" id="tipSend">${t('tipSend')}</button></div>${tipBoardHTML(o)}</div>`;
@@ -1350,6 +1381,7 @@ function giftBoxHTML(){
     ${gift.on?`<div class="gift-row"><select id="giftOcc">${GIFT_OCCASIONS.map((o,i)=>`<option value="${i}" ${gift.occasion==i?'selected':''}>${HI()?o.hi:o.en}</option>`).join('')}</select></div>
     <div class="gift-row"><small class="muted">${t('wrapTitle')}</small><div class="slot-pills">${allWrapStyles().map(st=>`<button class="slot-pill ${(gift.style||'classic')===st.id?'sel':''}" data-gstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}${st.m!==undefined?` • ${t('wrapLimited')}`:''}</small></button>`).join('')}</div></div>
     <textarea id="giftMsg" maxlength="140" placeholder="${t('giftMsgPh')}">${esc(gift.msg)}</textarea>
+    ${giftPreviewHTML({style:gift.style, occasion:gift.occasion, msg:gift.msg})}
     <label class="f-check"><input type="checkbox" id="giftHide" ${gift.hide?'checked':''}/> ${t('giftHide')}</label>`:''}
   </div>`;
 }
@@ -1379,9 +1411,9 @@ function renderCart(){
   const gOn = $('#giftOn',box);
   if(gOn) gOn.onchange = ()=>{ gift.on = gOn.checked; saveGift(); renderCart(); };
   const gOcc = $('#giftOcc',box);
-  if(gOcc) gOcc.onchange = ()=>{ gift.occasion = +gOcc.value; saveGift(); };
+  if(gOcc) gOcc.onchange = ()=>{ gift.occasion = +gOcc.value; saveGift(); renderCart(); };
   const gMsg = $('#giftMsg',box);
-  if(gMsg) gMsg.oninput = ()=>{ gift.msg = gMsg.value; saveGift(); };
+  if(gMsg) gMsg.oninput = ()=>{ gift.msg = gMsg.value; saveGift(); const pm=$('#giftPrevMsg',box); if(pm) pm.textContent='"'+(gMsg.value||'…')+'"'; };
   const gHide = $('#giftHide',box);
   if(gHide) gHide.onchange = ()=>{ gift.hide = gHide.checked; saveGift(); };
   $$('[data-gstyle]',box).forEach(b=>b.onclick=()=>{ gift.style = b.dataset.gstyle; saveGift(); renderCart(); });
@@ -1868,7 +1900,7 @@ function openTrack(id){
     <div class="track-steps" style="margin:8px 0 14px">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
     <div class="rev"><b>🛵 ${t('mapRider')}: ${rider.name} • ★ ${riderAvg(rider.name)}</b><p>${riderTxt}</p></div>
     ${sum?`<div class="rev"><b>🕐 ${t('slotTitle')}</b><p>${esc(sum)}</p></div>`:''}
-    ${o.gift?`<div class="rev"><b>🎁 ${t('giftTitle')} — ${esc(occName(o.gift.occasion))} • ${esc(giftStyleName(o.gift.style))}</b><p>"${esc(o.gift.msg||'—')}"</p></div>`:''}
+    ${o.gift?`<div class="rev"><b>🎁 ${t('giftTitle')} — ${esc(occName(o.gift.occasion))} • ${esc(giftStyleName(o.gift.style))}</b><p>"${esc(o.gift.msg||'—')}"</p>${giftPreviewHTML({style:o.gift.style, occasion:o.gift.occasion, msg:o.gift.msg})}</div>`:''}
     ${o.return?`<div class="rev"><b>↩ ${t('retStatus')}: ${retStatusName(o.return.status)}</b>
       <div class="track-steps" style="margin-top:10px">${[0,1,2,3].map(i=>`<div class="tstep ${i<=o.return.status?'done':''}"><div class="tdot">${i<=o.return.status?'✓':i+1}</div>${retStatusName(i)}</div>`).join('')}</div>
       <p>${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</p></div>`:''}

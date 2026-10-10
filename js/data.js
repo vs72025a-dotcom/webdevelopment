@@ -240,6 +240,7 @@ en:{
   pilotBtn:'Autopilot', pilotOn:'Autopilot ON', pilotOff:'Autopilot off', pilotNext:'Next auto-order', pilotEmpty:'No autopilot items — tap ✈️ on any reorder card!', pilotTitle:'Autopilot', pilotDone:'Autopilot order placed!',
   fan1:'Fan', fan3:'Bronze fan', fan5:'Silver fan', fan10:'Gold fan', fanOf:'fan of',
   wrapLimited:'Limited',
+  pilotSkip:'Smart-skipped — you still have stock!', pilotSmart:'Smart-pause', thanksTitle:'Note from your rider', prevTo:'To',
   secReorder:'Reorder essentials', secReorderSub:'Running low? One tap brings them back', reBought:'bought', reLow:'running low!',
 },
 hi:{
@@ -302,6 +303,7 @@ hi:{
   pilotBtn:'ऑटोपायलट', pilotOn:'ऑटोपायलट चालू', pilotOff:'ऑटोपायलट बंद', pilotNext:'अगला ऑटो-ऑर्डर', pilotEmpty:'कोई ऑटोपायलट आइटम नहीं — रीऑर्डर कार्ड पर ✈️ दबाएं!', pilotTitle:'ऑटोपायलट', pilotDone:'ऑटोपायलट ऑर्डर हो गया!',
   fan1:'फैन', fan3:'ब्रॉन्ज फैन', fan5:'सिल्वर फैन', fan10:'गोल्ड फैन', fanOf:'के फैन',
   wrapLimited:'लिमिटेड',
+  pilotSkip:'स्मार्ट-स्किप — आपके पास अभी स्टॉक है!', pilotSmart:'स्मार्ट-पॉज़', thanksTitle:'आपके राइडर का नोट', prevTo:'प्रति',
   secReorder:'फिर से मंगाएं', secReorderSub:'खत्म हो रहा? एक टैप में वापस पाएं', reBought:'बार खरीदा', reLow:'खत्म हो रहा!',
 }};
 
@@ -360,4 +362,12 @@ const SEASON_WRAPS = [
   { m:9, id:'diwali', e:'🪔', add:29, en:'Diwali Luxe', hi:'दिवाली लक्स' },
   { m:10, id:'marigold', e:'🌼', add:19, en:'Marigold Fest', hi:'गेंदा फेस्ट' },
   { m:11, id:'xmas', e:'🎄', add:19, en:'Christmas Joy', hi:'क्रिसमस जॉय' },
+];
+const RIDER_NOTES = [
+  { en:'Thank you for the tip! I packed your order with extra care. 🙏', hi:'टिप के लिए धन्यवाद! मैंने आपका ऑर्डर खास ध्यान से पैक किया। 🙏' },
+  { en:'You made my day! Hot and fast, just how you like it. ⭐', hi:'आपने मेरा दिन बना दिया! गरम और तेज़, जैसा आपको पसंद। ⭐' },
+  { en:'So grateful for fans like you! See you on the next delivery. 🛵', hi:'आप जैसे फैन के लिए आभारी हूं! अगली डिलीवरी पर मिलते हैं। 🛵' },
+  { en:'Your kindness fuels my rides! Five stars right back at you. 🌟', hi:'आपकी दया से मेरी राइड चलती है! आपको भी फाइव स्टार। 🌟' },
+  { en:'Gold fans are the best fans! I saved the fastest route for you. 🥇', hi:'गोल्ड फैन सबसे बेस्ट! मैंने आपके लिए सबसे तेज़ रास्ता चुना। 🥇' },
+  { en:'Rain or shine, your orders are my priority. Thank you! 💛', hi:'बारिश हो या धूप, आपके ऑर्डर मेरी प्राथमिकता हैं। धन्यवाद! 💛' },
 ];
