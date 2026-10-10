@@ -62,6 +62,10 @@ let loyalty = Object.assign({ pts:0, hist:[], updatedAt:0 }, LS.get('aw_loyal_v1
 const saveLoyalty = () => { loyalty.updatedAt = Date.now(); LS.set('aw_loyal_v1', loyalty); };
 let subs = LS.get('aw_subs_v1', []);
 const saveSubs = () => LS.set('aw_subs_v1', subs);
+let riderTips = LS.get('aw_tips_v1', {});
+const saveTips = () => LS.set('aw_tips_v1', riderTips);
+let boxDraft = { name:'', items:{}, freq:14 };
+let subGiftId = null, giftDraft = { to:'', msg:'', startIn:7 };
 let myRef = LS.get('aw_ref_v1', null);
 if(!myRef || !myRef.code){
   myRef = { code:'AW-' + Array.from({length:6},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join(''), used:null, count:0 };
@@ -322,6 +326,7 @@ function fulfillSubs(){
       status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
       addr, pay:'Subscription 🔁', upi:'', placedAt:Date.now(), slot:{}, gift:null, rating:null, subId:s.id };
     orders.push(o); made.push(o);
+    if(s.gift){ o.giftMsg = s.gift.msg||''; notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}${s.gift.msg?': \u201c'+s.gift.msg+'\u201d':''}`, '🎁'); s.gift = null; }
     s.nextTs = Date.now()+s.freq*864e5;
     const earn = loyEarnFor(total);
     if(earn>0) loyAdd(earn, `🔁 ${HI()?'सब्सक्रिप्शन':'Subscription'} #${o.id}`);
@@ -339,8 +344,8 @@ function openSubs(){
     const paused = s.active===false;
     return `<div class="split-row"><div style="flex:1"><b>${esc(nm)}${s.boxId?'':` × ${s.qty}`}</b><br/>
       <small class="muted">${t('subEvery')} ${subFreqName(s.freq)} • ${t('subNext')}: ${new Date(s.nextTs).toLocaleDateString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'})}</small><br/>
-      <span class="status ${paused?'st-placed':'st-delivered'}" style="font-size:11px">${paused?t('subPaused'):t('subActive')}</span></div>
-      <div class="sub-btns"><button class="btn ghost sm" data-subskip="${s.id}">⏭ ${t('subSkip')}</button>
+      <span class="status ${paused?'st-placed':'st-delivered'}" style="font-size:11px">${paused?t('subPaused'):t('subActive')}</span>${s.gift?` <span class="status st-delivered" style="font-size:11px">🎁 ${esc(s.gift.to)}</span>`:''}</div>
+      <div class="sub-btns"><button class="btn ghost sm" data-subgift="${s.id}">🎁 ${t('giftSub')}</button><button class="btn ghost sm" data-subskip="${s.id}">⏭ ${t('subSkip')}</button>
       <button class="btn secondary sm" data-subpause="${s.id}">${paused?'▶ '+t('subResume'):t('subPause')}</button>
       <button class="btn danger-ghost sm" data-subdel="${s.id}">✕</button></div></div>`;
   }).join('');
@@ -350,15 +355,23 @@ function openSubs(){
     <small><b>${fmt(boxTotal(b))}</b> • ${t('subEvery')} ${subFreqName(b.freq)}</small></div>
     <button class="btn ${on?'ghost':'primary'} sm" data-boxsub="${b.id}" ${on?'disabled':''}>${on?'✓':t('boxGo')}</button></div>`; }).join('');
   box.innerHTML = `<div class="modal-head"><h3>🔁 ${t('subTitle')}</h3><button class="icon-btn" onclick="document.getElementById('subModal').classList.remove('show')">✕</button></div>
-  <div class="modal-body"><div class="addr-head"><h4>📦 ${t('boxTitle')}</h4></div>
+  <div class="modal-body">${subGiftId?giftFormHTML():''}<div class="addr-head"><h4>📦 ${t('boxTitle')}</h4></div>
   <p class="muted small" style="margin:-6px 0 10px">${t('boxSub')}</p>
   <div class="split-list" style="margin-bottom:14px">${boxes}</div>
+  ${builderHTML()}
   ${subs.length?`<div class="addr-head"><h4>🔁 ${t('subTitle')}</h4></div><div class="split-list">${rows}</div>`:`<div class="empty"><div class="big">🔁</div><p>${t('subEmpty')}</p></div>`}</div>`;
   openModal('subModal');
   $$('[data-boxsub]',box).forEach(b=>b.onclick=()=>{ addBox(b.dataset.boxsub); openSubs(); });
+  bindBuilder(box);
+  const gt = $('#giftTo'); if(gt) gt.oninput = ()=>{ giftDraft.to = gt.value; };
+  const gm = $('#giftMsg'); if(gm) gm.oninput = ()=>{ giftDraft.msg = gm.value; };
+  $$('[data-gstart]',box).forEach(b=>b.onclick=()=>{ giftDraft.startIn = +b.dataset.gstart; openSubs(); });
+  const gs = $('#giftSave'); if(gs) gs.onclick = saveGiftSub;
+  const gc = $('#giftCancel'); if(gc) gc.onclick = ()=>{ subGiftId=null; openSubs(); };
   $$('[data-subskip]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subskip); if(s){ s.nextTs=Date.now()+s.freq*864e5; saveSubs(); cloudUp(); openSubs(); toast(t('subNext')+': '+new Date(s.nextTs).toLocaleDateString(),'⏭'); } });
   $$('[data-subpause]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subpause); if(s){ s.active=s.active===false?true:false; saveSubs(); cloudUp(); openSubs(); } });
   $$('[data-subdel]',box).forEach(b=>b.onclick=()=>{ subs=subs.filter(x=>x.id!==b.dataset.subdel); saveSubs(); cloudUp(); openSubs(); });
+  $$('[data-subgift]',box).forEach(b=>b.onclick=()=>{ subGiftId=b.dataset.subgift; giftDraft={to:'',msg:'',startIn:7}; openSubs(); });
 }
 function applyReferral(code){
   code = String(code||'').trim().toUpperCase().replace(/^AW-/,'');
@@ -400,7 +413,7 @@ function subItems(s){
   return [{ pid:s.pid, qty:s.qty||1 }];
 }
 function subName(s){
-  if(s && s.boxId){ const b = SUB_BOXES.find(x=>x.id===s.boxId); if(b) return `${b.e} ${boxName(b)}`; }
+  if(s && s.boxId){ const b = SUB_BOXES.find(x=>x.id===s.boxId); if(b) return `${b.e} ${boxName(b)}`; if(s.box && s.box.name) return `📦 ${s.box.name}`; }
   const p = s ? getP(s.pid) : null; return p ? `${p.e} ${p.n}` : (s&&s.pid)||'';
 }
 function addBox(bid){
@@ -466,6 +479,85 @@ function bindProof(o){
     const f = pf.files && pf.files[0]; if(!f) return;
     fileToDataURL(f, 640, .75).then(url=>{ o.proof=url; saveOrders(); cloudUp(); openTrack(o.id); if(route.page==='orders')renderPage(); toast('📸 '+t('proofTitle'),'📸'); }).catch(()=>toast(t('proofNone'),'⚠️'));
   };
+}
+/* ---------------- v9: box builder + sub gifting + tips ---------------- */
+function groceryList(){ return getProducts().filter(p=>p.v==='grocery'); }
+function boxDraftCount(){ return Object.values(boxDraft.items).reduce((a,q)=>a+q,0); }
+function boxDraftTotal(){ return Object.entries(boxDraft.items).reduce((a,e)=>{ const p=getP(e[0]); return a+(p?p.p*e[1]:0); },0); }
+function builderHTML(){
+  return `<div class="addr-head"><h4>🛠️ ${t('buildTitle')}</h4></div>
+  <div class="build-box">
+    <div class="coupon-box"><input id="buildName" maxlength="40" placeholder="${t('buildNamePh')}" value="${esc(boxDraft.name)}"/></div>
+    <div class="build-grid">${groceryList().map(p=>{ const q = boxDraft.items[p.id]||0;
+      return `<div class="build-row"><span style="font-size:22px">${p.e}</span><div style="flex:1"><b class="small">${esc(p.n)}</b><br/><small class="muted">${fmt(p.p)}</small></div>
+      <span class="mini-qty"><button data-bdec="${p.id}">−</button>${q}<button data-binc="${p.id}">+</button></span></div>`; }).join('')}</div>
+    <div class="toggle-row" style="border:none;padding:10px 0 0"><span>${t('buildFreq')}</span><select id="buildFreq">${SUB_FREQS.map(f=>`<option value="${f}" ${boxDraft.freq==f?'selected':''}>${t('subEvery')} ${subFreqName(f)}</option>`).join('')}</select></div>
+    <div class="bill-row total"><span>${boxDraftCount()} ${t('buildAdd')}</span><span>${fmt(boxDraftTotal())}</span></div>
+    <button class="btn primary full" id="buildGo" style="margin-top:10px">📦 ${t('buildGo')}</button>
+  </div>`;
+}
+function bindBuilder(box){
+  const nm = $('#buildName');
+  if(nm) nm.oninput = ()=>{ boxDraft.name = nm.value; };
+  const fq = $('#buildFreq');
+  if(fq) fq.onchange = ()=>{ boxDraft.freq = +fq.value; };
+  $$('[data-binc]',box).forEach(b=>b.onclick=()=>{ const id=b.dataset.binc; boxDraft.items[id]=Math.min(20,(boxDraft.items[id]||0)+1); openSubs(); });
+  $$('[data-bdec]',box).forEach(b=>b.onclick=()=>{ const id=b.dataset.bdec; boxDraft.items[id]=(boxDraft.items[id]||0)-1; if(boxDraft.items[id]<=0) delete boxDraft.items[id]; openSubs(); });
+  const go = $('#buildGo');
+  if(go) go.onclick = ()=>{
+    const entries = Object.entries(boxDraft.items);
+    if(!entries.length){ toast(t('buildNeed'),'⚠️'); return; }
+    addCustomBox(boxDraft.name.trim()||'My Box', entries.map(e=>({pid:e[0],qty:e[1]})), boxDraft.freq);
+    boxDraft = { name:'', items:{}, freq:14 };
+    openSubs();
+  };
+}
+function addCustomBox(name, items, freq){
+  const s = { id:uid('SB'), pid:(items[0]||{}).pid, qty:1, freq:freq||14, nextTs:Date.now()+(freq||14)*864e5, active:true, createdAt:Date.now(), boxId:uid('BX'), custom:true, box:{ name, items } };
+  subs.push(s); saveSubs(); cloudUp();
+  notify('📦 '+t('boxActive'), `📦 ${name}`, '📦');
+  return s;
+}
+function giftStartLabel(d){ return d===1?t('giftD1'):d===3?t('giftD3'):d===7?t('giftD7'):t('giftD30'); }
+function giftFormHTML(){
+  return `<div class="build-box" style="margin-bottom:14px"><div class="addr-head" style="margin-top:0"><h4>🎁 ${t('giftSub')}</h4></div>
+    <div class="coupon-box"><input id="giftTo" maxlength="30" placeholder="${t('giftToPh')}" value="${esc(giftDraft.to)}"/></div>
+    <div class="coupon-box"><input id="giftMsg" maxlength="80" placeholder="${t('giftMsgPh')}" value="${esc(giftDraft.msg)}"/></div>
+    <small class="muted">${t('giftStart')}</small>
+    <div class="slot-pills" style="margin:6px 0 10px">${[1,3,7,30].map(d=>`<button class="slot-pill ${giftDraft.startIn==d?'sel':''}" data-gstart="${d}">${giftStartLabel(d)}</button>`).join('')}</div>
+    <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1" id="giftSave">🎁 ${t('giftSave')}</button><button class="btn ghost" id="giftCancel">${t('giftCancel')}</button></div></div>`;
+}
+function saveGiftSub(){
+  const s = subs.find(x=>x.id===subGiftId); if(!s) return;
+  const startTs = Date.now()+giftDraft.startIn*864e5;
+  s.gift = { to:giftDraft.to.trim()||'🎁', msg:giftDraft.msg.trim(), startTs };
+  s.nextTs = startTs;
+  saveSubs(); cloudUp();
+  notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}`, '🎁');
+  subGiftId = null; giftDraft = { to:'', msg:'', startIn:7 };
+  openSubs();
+}
+function tipRider(o, amt){
+  if(!o || o.tip || !(amt>0)) return false;
+  o.tip = Math.round(amt);
+  const r = riderFor(o);
+  riderTips[r.name] = (riderTips[r.name]||0) + o.tip;
+  saveTips(); saveOrders(); cloudUp();
+  notify(`💰 ${t('tipThanks')}`, `${r.name} • ${fmt(o.tip)} 🙏`, '💰');
+  return true;
+}
+function tipHTML(o){
+  if(!o || o.status!==4) return '';
+  const r = riderFor(o);
+  if(o.tip) return `<div class="rev"><b>💰 ${t('tipThanks')}</b><p>${r.name} • ${fmt(o.tip)} 🙏 • ${fmt(riderTips[r.name]||o.tip)} ${t('tipTotal')}</p></div>`;
+  return `<div class="rev"><b>💰 ${t('tipTitle')} — ${r.name}</b>
+    <div class="slot-pills" style="margin:10px 0">${TIP_AMOUNTS.map(a=>`<button class="slot-pill" data-tipamt="${a}">${fmt(a)}</button>`).join('')}</div>
+    <div class="coupon-box"><input id="tipCustom" type="number" min="1" max="1000" placeholder="${t('tipCustom')} (₹)"/><button class="btn primary sm" id="tipSend">${t('tipSend')}</button></div></div>`;
+}
+function bindTip(o){
+  $$('[data-tipamt]').forEach(b=>b.onclick=()=>{ if(tipRider(o, +b.dataset.tipamt)){ openTrack(o.id); if(route.page==='orders')renderPage(); toast(`💰 ${fmt(o.tip)} 🙏`,'💰'); } });
+  const ts = $('#tipSend');
+  if(ts) ts.onclick = ()=>{ const v = Math.round(+($('#tipCustom')||{value:0}).value||0); if(!(v>0)){ toast(t('tipCustom'),'⚠️'); return; } if(tipRider(o, v)){ openTrack(o.id); if(route.page==='orders')renderPage(); toast(`💰 ${fmt(o.tip)} 🙏`,'💰'); } };
 }
 
 /* ---------------- Calendar helpers ---------------- */
@@ -830,6 +922,7 @@ function orderCardHTML(o){
     ${o.splitCount?`<span>📦 ${o.splitIdx} ${t('splitOf')} ${o.splitCount} ${t('splitShip')}</span>`:''}
     ${o.subId?`<span>🔁 ${t('subBtn')}</span>`:''}
     ${o.proof?`<span>📸 ${t('proofTitle')}</span>`:''}
+    ${o.tip?`<span>💰 ${fmt(o.tip)}</span>`:''}
     ${o.rating?`<span style="color:#f59e0b">★ ${o.rating.stars}</span>`:''}</div>
     <div class="track-steps">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
     ${o.return?`<div class="refund-line">↩ ${t('retStatus')}: <b>${retStatusName(o.return.status)}</b> • ${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</div>`:''}
@@ -1631,6 +1724,7 @@ function openTrack(id){
       : `<button class="btn secondary full" id="trackRate" style="margin-bottom:10px">⭐ ${t('rateBtn')} — ${rider.name}</button>`) : ''}
     ${splitTrackHTML(o)}
     ${proofHTML(o)}
+    ${tipHTML(o)}
     <div class="rev"><b>🧾 ${t('coItems')}</b><p>${items.map(esc).join('<br/>')}</p></div>
     <div class="rev"><b>📍 ${t('pDeliverTo')}</b><p>${esc(o.addr.name)} • ${esc(o.addr.line)}, ${esc(o.addr.city)} ${esc(o.addr.pin)}</p></div>
     <div class="bill-row total"><span>${HI()?'भुगतान':'Paid via'} ${esc(o.pay)}${o.razorpay&&o.razorpay.payment_id?' • …'+esc(o.razorpay.payment_id.slice(-6)):''}</span><span>${fmt(o.total)}</span></div>
@@ -1640,6 +1734,7 @@ function openTrack(id){
   trackToken++;
   $$('[data-sibgo]',box).forEach(b=>b.onclick=()=>openTrack(b.dataset.sibgo));
   bindProof(o);
+  bindTip(o);
   animateRider(o, trackToken);
   const tr = $('#trackRate');
   if(tr) tr.onclick = ()=>openRate(id);

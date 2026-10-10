@@ -232,6 +232,9 @@ en:{
   boxTitle:'Essentials boxes', boxSub:'Curated grocery boxes — subscribe once, auto-delivered', boxItems:'items', boxGo:'Subscribe box', boxIn:'In this box', boxActive:'Box subscribed!',
   lbTitle:'Referral leaderboard', lbYou:'You', lbPts:'pts', lbDemo:'Demo: a friend joined (+50)', lbRank:'Your rank',
   proofTitle:'Delivery photo', proofSnap:'Simulate rider photo', proofUpload:'Upload photo', proofNone:'No photo yet — the rider snapshot appears here on delivery.', proofBy:'Snapped at delivery',
+  buildTitle:'Build your own box', buildName:'Box name', buildNamePh:'e.g. Monthly Munchies', buildFreq:'Delivery every', buildAdd:'items in box', buildGo:'Subscribe custom box', buildNeed:'Add at least 1 item',
+  giftSub:'Gift', giftToPh:'Who is it for?', giftMsgPh:'Enjoy your fresh box! 🎁', giftStart:'Starts', giftSave:'Schedule gift', giftCancel:'Cancel', giftFor:'Gift for', giftSent:'Gift subscription scheduled!', giftD1:'Tomorrow', giftD3:'In 3 days', giftD7:'In 7 days', giftD30:'In 30 days',
+  tipTitle:'Tip your rider', tipSend:'Send tip', tipThanks:'Thanks for tipping!', tipTotal:'tips earned', tipCustom:'Custom',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -285,6 +288,9 @@ hi:{
   boxTitle:'ज़रूरी बॉक्स', boxSub:'चुने हुए किराना बॉक्स — एक बार सब्सक्राइब करें, ऑटो-डिलीवरी पाएं', boxItems:'सामान', boxGo:'बॉक्स सब्सक्राइब', boxIn:'इस बॉक्स में', boxActive:'बॉक्स सब्सक्राइब हुआ!',
   lbTitle:'रेफरल लीडरबोर्ड', lbYou:'आप', lbPts:'पॉइंट', lbDemo:'डेमो: दोस्त जुड़ा (+50)', lbRank:'आपकी रैंक',
   proofTitle:'डिलीवरी फोटो', proofSnap:'राइडर फोटो बनाएं', proofUpload:'फोटो अपलोड', proofNone:'अभी फोटो नहीं — डिलीवरी पर राइडर फोटो यहां दिखेगी।', proofBy:'डिलीवरी पर ली गई',
+  buildTitle:'अपना बॉक्स बनाएं', buildName:'बॉक्स का नाम', buildNamePh:'जैसे मासिक राशन', buildFreq:'डिलीवरी हर', buildAdd:'सामान', buildGo:'कस्टम बॉक्स सब्सक्राइब', buildNeed:'कम से कम 1 सामान जोड़ें',
+  giftSub:'गिफ्ट', giftToPh:'किसके लिए है?', giftMsgPh:'अपना फ्रेश बॉक्स एंजॉय करो! 🎁', giftStart:'शुरू होगा', giftSave:'गिफ्ट शेड्यूल करें', giftCancel:'रद्द करें', giftFor:'गिफ्ट —', giftSent:'गिफ्ट सब्सक्रिप्शन शेड्यूल हुआ!', giftD1:'कल', giftD3:'3 दिन में', giftD7:'7 दिन में', giftD30:'30 दिन में',
+  tipTitle:'राइडर को टिप दें', tipSend:'टिप भेजें', tipThanks:'टिप के लिए धन्यवाद!', tipTotal:'टिप मिली', tipCustom:'कस्टम',
 }};
 
 const RETURN_REASONS = [
@@ -318,3 +324,4 @@ const REF_BOARD = [
   { n:'Aarav', pts:480 }, { n:'Priya', pts:350 }, { n:'Kabir', pts:300 },
   { n:'Neha', pts:210 }, { n:'Rohan', pts:150 }, { n:'Isha', pts:90 }, { n:'Dev', pts:50 },
 ];
+const TIP_AMOUNTS = [10, 20, 50, 100];

@@ -68,6 +68,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **📸 Delivery-photo proof** — delivered orders auto-attach a rider snapshot (generated + timestamped); recipients can view it on tracking/cards, retake, or upload their own photo
 
+**🛠️ Custom box builder** — build your own subscription box from any groceries: steppers, custom name, frequency; multi-item auto-orders with 5% off like curated boxes
+
+**🎁 Subscription gifting** — gift any subscription with a recipient, message, and scheduled start (tomorrow → 30 days); first delivery arrives as the gift with your message
+
+**💰 Rider tips** — tip delivered orders from tracking (₹10–100 presets or custom); per-rider totals, one-tap once-only, 💰 chip on order cards
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs

@@ -645,3 +645,11 @@ html[data-theme="dark"] .toast{background:#fff;color:#111}
 .lb-row{display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border)}
 .lb-row.you{border:2px solid var(--primary);background:color-mix(in srgb,var(--primary) 8%,var(--surface-2))}
 .proof-img{width:100%;border-radius:var(--radius-sm);margin:10px 0 4px;border:1px solid var(--border)}
+
+/* ---- v9: box builder / sub gifting ---- */
+.build-box{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px}
+.build-box .coupon-box{margin:0 0 10px}
+.build-grid{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;padding-right:2px}
+.build-row{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.build-row:last-child{border-bottom:none}
+.build-row .mini-qty{font-size:12px}
