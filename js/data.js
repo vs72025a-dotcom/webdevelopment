@@ -208,6 +208,11 @@ en:{
   locTitle:'Choose delivery location', locSearchPh:'Search city or pincode', locDetect:'Use my current location', locPop:'Popular cities', locHint:'e.g. Mumbai, 400001…',
   auWelcome:'Welcome', auLogin:'Login', auSignup:'Sign up', auName:'Name', auEmail:'Email', auPhone:'Phone', auLoginBtn:'Login', auCreateBtn:'Create account', auDemo:'Demo auth — stored only in your browser.', auHi:'Hi', auLogout:'Logout',
   ftShop:'Shop', ftCompany:'Company', ftHelp:'Help', ftAbout:'About us', ftCareers:'Careers', ftPartner:'Become a partner', ftGift:'Gift cards', ftBlog:'Blog', ftHelpC:'Help center', ftTrack:'Track order', ftReturns:'Returns', ftTerms:'Terms & privacy', ftCustom:'Customize store', ftSeller:'Seller Central',
+  notifTitle:'Notifications', notifEmpty:'No notifications yet', notifEmptySub:'Order updates will appear here.', notifEnable:'Enable push alerts', notifOn:'Push alerts ON', notifClear:'Clear all',
+  addrTitle:'My Addresses', addrAdd:'Add new address', addrSave:'Save address', addrLabel:'Label', addrHome:'Home', addrWork:'Work', addrOther:'Other', addrSaveBook:'Save to address book', addrEmpty:'No saved addresses yet', addrSaved:'Saved addresses',
+  retTitle:'Return / Refund', retReason:'Reason for return', retDetail:'Details (optional)', retConfirm:'Confirm return', retStatus:'Refund status',
+  r0:'Requested', r1:'Approved', r2:'Picked up', r3:'Refunded', retTo:'Refund to',
+  mapEta:'Arriving in', mapRider:'Your rider', mapStore:'Store', mapHome:'Home',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -237,4 +242,20 @@ hi:{
   locTitle:'डिलीवरी लोकेशन चुनें', locSearchPh:'शहर या पिनकोड खोजें', locDetect:'मेरी करंट लोकेशन इस्तेमाल करें', locPop:'लोकप्रिय शहर', locHint:'जैसे Mumbai, 400001…',
   auWelcome:'नमस्ते', auLogin:'लॉगिन', auSignup:'साइन अप', auName:'नाम', auEmail:'ईमेल', auPhone:'फ़ोन', auLoginBtn:'लॉगिन', auCreateBtn:'अकाउंट बनाएं', auDemo:'डेमो लॉगिन — सिर्फ आपके ब्राउज़र में सेव।', auHi:'नमस्ते', auLogout:'लॉगआउट',
   ftShop:'खरीदें', ftCompany:'कंपनी', ftHelp:'मदद', ftAbout:'हमारे बारे में', ftCareers:'करियर', ftPartner:'पार्टनर बनें', ftGift:'गिफ्ट कार्ड', ftBlog:'ब्लॉग', ftHelpC:'हेल्प सेंटर', ftTrack:'ऑर्डर ट्रैक करें', ftReturns:'रिटर्न', ftTerms:'नियम व प्राइवेसी', ftCustom:'स्टोर कस्टमाइज़ करें', ftSeller:'सेलर सेंट्रल',
+  notifTitle:'सूचनाएं', notifEmpty:'अभी कोई सूचना नहीं', notifEmptySub:'ऑर्डर अपडेट यहां दिखेंगे।', notifEnable:'पुश अलर्ट चालू करें', notifOn:'पुश अलर्ट चालू', notifClear:'सभी हटाएं',
+  addrTitle:'मेरे पते', addrAdd:'नया पता जोड़ें', addrSave:'पता सेव करें', addrLabel:'लेबल', addrHome:'घर', addrWork:'ऑफिस', addrOther:'अन्य', addrSaveBook:'एड्रेस बुक में सेव करें', addrEmpty:'अभी कोई सेव पता नहीं', addrSaved:'सेव किए गए पते',
+  retTitle:'रिटर्न / रिफंड', retReason:'रिटर्न का कारण', retDetail:'विवरण (वैकल्पिक)', retConfirm:'रिटर्न कन्फर्म करें', retStatus:'रिफंड स्टेटस',
+  r0:'रिक्वेस्ट हुई', r1:'अप्रूव हुआ', r2:'पिकअप हुआ', r3:'रिफंड हुआ', retTo:'रिफंड जाएगा',
+  mapEta:'पहुचेगा', mapRider:'आपका राइडर', mapStore:'स्टोर', mapHome:'घर',
 }};
+
+const RETURN_REASONS = [
+  { en:'Damaged / defective item', hi:'टूटा / खराब सामान' },
+  { en:'Wrong item delivered', hi:'गलत सामान आया' },
+  { en:'Item missing from order', hi:'सामान गायब है' },
+  { en:'Quality not as expected', hi:'क्वालिटी उम्मीद जैसी नहीं' },
+  { en:'Ordered by mistake', hi:'गलती से ऑर्डर हुआ' },
+  { en:'Late delivery', hi:'डिलीवरी लेट हुई' },
+];
+
+const RIDER_NAMES = ['Arjun','Ravi','Sana','Vikram','Ishaan','Meera','Kabir','Divya'];

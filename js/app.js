@@ -1,6 +1,6 @@
 /* ============================================================
    AnyWhere Anything — App Engine
-   State • Rendering • Cart • Checkout + UPI • Seller • i18n
+   State • i18n • Cart • Checkout+UPI • Seller • Notify • Map
    ============================================================ */
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
@@ -11,6 +11,8 @@ const LS = {
 };
 const uid = (p='') => p + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const esc = (s='') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const setT = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
+const setPH = (id, txt) => { const el = document.getElementById(id); if(el) el.placeholder = txt; };
 
 /* ---------------- State ---------------- */
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get('aw_settings_v1', {}));
@@ -30,15 +32,20 @@ let extraProducts = LS.get('aw_products_extra_v1', []);
 let deletedIds = LS.get('aw_products_deleted_v1', []);
 let editedProducts = LS.get('aw_products_edited_v1', {});
 let myReviews = LS.get('aw_reviews_v1', {});
+let addrs = LS.get('aw_addrs_v1', []);
+let notifs = LS.get('aw_notifs_v1', []);
+let pushOn = LS.get('aw_push_v1', false);
 
 let route = { page:'home', vertical:'all', category:'all', query:'', sort:'pop' };
 let filters = { cats:new Set(), maxPrice:100000, minRating:0, vegOnly:false };
-let coState = { step:0, addr:{}, pay:'upi', upi:{ id:'', verified:false, name:'', app:'GPay' } };
+let coState = { step:0, addr:{}, pay:'upi', upi:{ id:'', verified:false, name:'', app:'GPay' }, addrId:null, newAddr:false };
 
 const saveSettings = () => LS.set('aw_settings_v1', settings);
 const saveCart = () => LS.set('aw_cart_v1', cart);
 const saveWish = () => LS.set('aw_wish_v1', [...wishlist]);
 const saveOrders = () => LS.set('aw_orders_v1', orders);
+const saveAddrs = () => LS.set('aw_addrs_v1', addrs);
+const saveNotifs = () => LS.set('aw_notifs_v1', notifs);
 
 /* ---------------- Helpers ---------------- */
 const t = k => (I18N[settings.lang] && I18N[settings.lang][k]) || I18N.en[k] || k;
@@ -55,20 +62,32 @@ function getProducts(){
 const getP = id => getProducts().find(p => p.id === id);
 const vertOf = id => VERTICALS.find(v => v.id === id);
 const statusName = i => t('st'+Math.min(4,Math.max(0,i)));
+const retStatusName = i => t('r'+Math.min(3,Math.max(0,i)));
+function riderFor(o){
+  let s = 0; for(const ch of o.id) s += ch.charCodeAt(0);
+  return { name: RIDER_NAMES[s % RIDER_NAMES.length], rating: (4.7 + (s % 3) * 0.1).toFixed(1) };
+}
+function timeAgo(ts){
+  const m = Math.max(0, Math.floor((Date.now()-ts)/60000));
+  if(m < 1) return HI() ? 'अभी' : 'just now';
+  if(m < 60) return HI() ? `${m} मि. पहले` : `${m}m ago`;
+  const h = Math.floor(m/60);
+  if(h < 24) return HI() ? `${h} घं. पहले` : `${h}h ago`;
+  return HI() ? `${Math.floor(h/24)} दि. पहले` : `${Math.floor(h/24)}d ago`;
+}
 function toast(msg, emoji='✅'){
   const el = document.createElement('div');
   el.className = 'toast'; el.innerHTML = `<span>${emoji}</span><span>${esc(msg)}</span>`;
-  $('#toasts').appendChild(el);
+  const box = $('#toasts'); if(!box) return;
+  box.appendChild(el);
   setTimeout(()=>{ el.style.opacity='0'; el.style.transition='.3s'; setTimeout(()=>el.remove(), 300); }, 2600);
 }
 function stars(r){ const f = Math.round(r); return '★'.repeat(f) + '☆'.repeat(5-f); }
-/* Product media: real image (upload/URL) with emoji fallback */
 function mediaHTML(p){
   const em = `<span>${p.e||'📦'}</span>`;
   if(p.img) return `${em}<img class="pimg" src="${esc(p.img)}" alt="" loading="lazy" onerror="this.remove()"/>`;
   return em;
 }
-/* Compress an uploaded image so it fits in localStorage */
 function fileToDataURL(file, maxDim=800, q=.82){
   return new Promise((res, rej)=>{
     if(!file || !file.type.startsWith('image/')) return rej('not-image');
@@ -84,9 +103,10 @@ function fileToDataURL(file, maxDim=800, q=.82){
     img.onerror = rej; img.src = url;
   });
 }
-/* Demo UPI QR (pseudo-random but stable per order) */
 function drawUPIQR(canvas, seedStr){
-  const n = 25, ctx = canvas.getContext('2d'), s = canvas.width / n;
+  const ctx = canvas ? canvas.getContext('2d') : null;
+  if(!ctx) return;
+  const n = 25, s = canvas.width / n;
   let h = 7; for(const ch of seedStr) h = (h*31 + ch.charCodeAt(0)) >>> 0;
   const rnd = () => (h = (h*1103515245 + 12345) >>> 0) / 4294967296;
   const inFinder = (x,y) => (x<8&&y<8)||(x>=n-8&&y<8)||(x<8&&y>=n-8);
@@ -104,6 +124,39 @@ function drawUPIQR(canvas, seedStr){
   }
 }
 
+/* ---------------- Notifications ---------------- */
+function notify(title, body, e='🔔'){
+  notifs.unshift({ id:uid('n'), title, body, e, ts:Date.now(), read:false });
+  notifs = notifs.slice(0, 40); saveNotifs(); updateBadges();
+  const dr = $('#notifDrawer');
+  if(dr && dr.classList.contains('show')) renderNotifs();
+  if(pushOn && 'Notification' in window && Notification.permission === 'granted'){
+    try{ new Notification(title, { body }); }catch{}
+  }
+}
+function renderNotifs(){
+  const box = $('#notifBody'); if(!box) return;
+  const granted = 'Notification' in window && Notification.permission === 'granted';
+  box.innerHTML = `
+    <div class="push-row"><span style="font-size:24px">${pushOn&&granted?'🔔':'🔕'}</span>
+      <span>${pushOn&&granted ? t('notifOn') : t('notifEnable')}<small>${HI()?'ऑर्डर अपडेट तुरंत पाएं':'Get order updates instantly'}</small></span>
+      ${pushOn&&granted ? '' : `<button class="btn primary sm" id="btnPush">${t('notifEnable')}</button>`}
+    </div>
+    ${notifs.length ? `<div class="addr-head"><h4>${notifs.length} ${t('notifTitle').toLowerCase?.()||''}</h4><button class="btn ghost sm" id="btnClearN">${t('notifClear')}</button></div>` : ''}
+    ${notifs.length ? notifs.map(n=>`<div class="notif-item ${n.read?'':'unread'}"><span class="ne">${n.e}</span>
+      <div><b>${esc(n.title)}</b><p>${esc(n.body)}</p><small>${timeAgo(n.ts)}</small></div></div>`).join('')
+    : `<div class="empty"><div class="big">🔔</div><h3>${t('notifEmpty')}</h3><p>${t('notifEmptySub')}</p></div>`}`;
+  const bp = $('#btnPush');
+  if(bp) bp.onclick = async ()=>{
+    if(!('Notification' in window)){ toast('Push not supported here','⚠️'); return; }
+    const gr = await Notification.requestPermission();
+    if(gr === 'granted'){ pushOn = true; LS.set('aw_push_v1', true); renderNotifs(); notify(HI()?'पुश अलर्ट चालू 🎉':'Push alerts ON 🎉', HI()?'अब हर ऑर्डर अपडेट मिलेगा':'You will now get every order update', '🔔'); }
+    else toast('Permission denied','⚠️');
+  };
+  const bc = $('#btnClearN');
+  if(bc) bc.onclick = ()=>{ notifs = []; saveNotifs(); updateBadges(); renderNotifs(); };
+}
+
 /* ============================================================
    APPLY SETTINGS → theme + texts + language chrome
    ============================================================ */
@@ -117,41 +170,41 @@ function applySettings(){
   r.style.setProperty('--radius', T.radius + 'px');
   r.style.setProperty('--radius-sm', Math.max(6, T.radius-6) + 'px');
   const lm = $('#logoMark');
-  if(settings.logoImg) lm.innerHTML = `<img src="${settings.logoImg}" alt="logo"/>`;
-  else lm.textContent = settings.logoEmoji || '🌍';
-  $('#storeName').textContent = settings.storeName || 'AnyWhere';
-  $('#storeName2').textContent = settings.storeName2 || 'Anything';
-  $('#storeTagline').textContent = settings.tagline || '';
-  $('#sideLogo').textContent = `${settings.logoImg?'🏪':(settings.logoEmoji||'🌍')} ${settings.storeName||''} ${settings.storeName2||''}`;
+  if(lm){ if(settings.logoImg) lm.innerHTML = `<img src="${settings.logoImg}" alt="logo"/>`; else lm.textContent = settings.logoEmoji || '🌍'; }
+  setT('storeName', settings.storeName || 'AnyWhere');
+  setT('storeName2', settings.storeName2 || 'Anything');
+  setT('storeTagline', settings.tagline || '');
+  setT('sideLogo', `${settings.logoImg?'🏪':(settings.logoEmoji||'🌍')} ${settings.storeName||''} ${settings.storeName2||''}`);
   const an = $('#announce');
-  an.textContent = settings.announce || '';
-  an.classList.toggle('show', !!settings.showAnnounce && !!settings.announce);
-  $('#btnTheme').textContent = r.dataset.theme === 'dark' ? '☀️' : '🌙';
+  if(an){ an.textContent = settings.announce || ''; an.classList.toggle('show', !!settings.showAnnounce && !!settings.announce); }
+  const bt = $('#btnTheme'); if(bt) bt.textContent = r.dataset.theme === 'dark' ? '☀️' : '🌙';
   document.title = `${settings.storeName} ${settings.storeName2} — Food, Grocery, Shopping & More`;
 }
 function applyChromeI18n(){
-  $('#searchInput').placeholder = t('searchPh');
-  $('#searchInputM').placeholder = t('searchPhM');
-  $('#btnSearch').textContent = t('search');
-  $('#btnLang').textContent = HI() ? 'हिं' : 'EN';
+  setPH('searchInput', t('searchPh'));
+  setPH('searchInputM', t('searchPhM'));
+  setT('btnSearch', t('search'));
+  setT('btnLang', HI() ? 'हिं' : 'EN');
   document.documentElement.lang = HI() ? 'hi' : 'en';
-  $('.cart-btn span').textContent = t('cart');
-  $('.loc-text small').textContent = t('deliverTo');
-  $('#cartTitle').textContent = t('cartTitle');
-  $('#wishTitle').textContent = '❤️ ' + t('wishTitle');
-  $('#locTitle').textContent = '📍 ' + t('locTitle');
-  $('#locLabel').textContent = t('locSearchPh');
-  $('#locSearch').placeholder = t('locHint');
-  $('#btnDetect').textContent = '🎯 ' + t('locDetect');
-  $('#locPop').textContent = t('locPop');
-  $('#authTitle').textContent = '👋 ' + t('auWelcome');
-  $('#tabLogin').textContent = t('auLogin');
-  $('#tabSignup').textContent = t('auSignup');
-  $('#authNote').textContent = t('auDemo');
-  $('#btnCustomize2').textContent = '🎨 ' + t('sideCustom');
-  $('#btnLogin2').textContent = '👤 ' + t('sideLogin');
+  const cs = $('.cart-btn span'); if(cs) cs.textContent = t('cart');
+  const lt = $('.loc-text small'); if(lt) lt.textContent = t('deliverTo');
+  setT('cartTitle', t('cartTitle'));
+  setT('wishTitle', '❤️ ' + t('wishTitle'));
+  setT('notifTitle', '🔔 ' + t('notifTitle'));
+  const bb = $('#btnBell'); if(bb) bb.title = t('notifTitle');
+  setT('locTitle', '📍 ' + t('locTitle'));
+  setT('locSearchLabel', t('locSearchPh'));
+  setPH('locSearch', t('locHint'));
+  setT('btnDetect', '🎯 ' + t('locDetect'));
+  setT('locPop', t('locPop'));
+  setT('authTitle', '👋 ' + t('auWelcome'));
+  setT('tabLogin', t('auLogin'));
+  setT('tabSignup', t('auSignup'));
+  setT('authNote', t('auDemo'));
+  setT('btnCustomize2', '🎨 ' + t('sideCustom'));
+  setT('btnLogin2', '👤 ' + t('sideLogin'));
   const m = { home:'bHome', shop:'bExplore', offers:'bOffers', orders:'bOrders', cart:'bCart' };
-  $$('.bottom-nav button').forEach(b => { b.querySelector('small').textContent = t(m[b.dataset.nav]); });
+  $$('.bottom-nav button').forEach(b => { const s = b.querySelector('small'); if(s) s.textContent = t(m[b.dataset.nav]); });
 }
 
 /* ============================================================
@@ -159,32 +212,37 @@ function applyChromeI18n(){
    ============================================================ */
 function renderNav(){
   const nav = $('#catNav');
-  nav.innerHTML = `<button class="cat-pill ${route.vertical==='all'?'active':''}" data-vert="all">🌍 ${t('all')}</button>` +
-    VERTICALS.map(v => `<button class="cat-pill ${route.vertical===v.id?'active':''}" data-vert="${v.id}">${v.emoji} ${esc(vname(v))}</button>`).join('');
-  $$('#catNav .cat-pill').forEach(b => b.onclick = () => {
-    route = { page:'shop', vertical:b.dataset.vert, category:'all', query:'', sort:'pop' };
-    filters = { cats:new Set(), maxPrice:100000, minRating:0, vegOnly:false };
-    renderAll(); window.scrollTo({top:0, behavior:'smooth'});
-  });
+  if(nav){
+    nav.innerHTML = `<button class="cat-pill ${route.vertical==='all'?'active':''}" data-vert="all">🌍 ${t('all')}</button>` +
+      VERTICALS.map(v => `<button class="cat-pill ${route.vertical===v.id?'active':''}" data-vert="${v.id}">${v.emoji} ${esc(vname(v))}</button>`).join('');
+    $$('#catNav .cat-pill').forEach(b => b.onclick = () => {
+      route = { page:'shop', vertical:b.dataset.vert, category:'all', query:'', sort:'pop' };
+      filters = { cats:new Set(), maxPrice:100000, minRating:0, vegOnly:false };
+      renderAll(); window.scrollTo({top:0, behavior:'smooth'});
+    });
+  }
   const links = [
     ['🏠', t('sideHome'), 'home'], ['🧭', t('sideExplore'), 'shop'], ['🏷️', t('sideOffers'), 'offers'],
     ['📦', t('sideOrders'), 'orders'], ['❤️', t('sideWish'), 'wish'], ['💼', t('sideSeller'), 'seller'],
     ['🎨', t('sideCustom'), 'custom'],
     ...VERTICALS.map(v => [v.emoji, vname(v), 'v:'+v.id]),
   ];
-  $('#sideLinks').innerHTML = links.map(([e,n,a]) => `<button data-go="${a}">${e} ${esc(n)}</button>`).join('');
-  $$('#sideLinks button').forEach(b => b.onclick = () => {
-    closeAll(); const a = b.dataset.go;
-    if(a==='home') route.page='home';
-    else if(a==='shop') route={page:'shop',vertical:'all',category:'all',query:'',sort:'pop'};
-    else if(a==='offers') route.page='offers';
-    else if(a==='orders') route.page='orders';
-    else if(a==='seller') route.page='seller';
-    else if(a==='wish'){ openDrawer('wishDrawer'); renderWish(); return; }
-    else if(a==='custom'){ openDrawer('customDrawer'); renderCustomizer('store'); return; }
-    else if(a.startsWith('v:')) route={page:'shop',vertical:a.slice(2),category:'all',query:'',sort:'pop'};
-    renderAll(); window.scrollTo({top:0,behavior:'smooth'});
-  });
+  const sl = $('#sideLinks');
+  if(sl){
+    sl.innerHTML = links.map(([e,n,a]) => `<button data-go="${a}">${e} ${esc(n)}</button>`).join('');
+    $$('#sideLinks button').forEach(b => b.onclick = () => {
+      closeAll(); const a = b.dataset.go;
+      if(a==='home') route.page='home';
+      else if(a==='shop') route={page:'shop',vertical:'all',category:'all',query:'',sort:'pop'};
+      else if(a==='offers') route.page='offers';
+      else if(a==='orders') route.page='orders';
+      else if(a==='seller') route.page='seller';
+      else if(a==='wish'){ openDrawer('wishDrawer'); renderWish(); return; }
+      else if(a==='custom'){ openDrawer('customDrawer'); renderCustomizer('store'); return; }
+      else if(a.startsWith('v:')) route={page:'shop',vertical:a.slice(2),category:'all',query:'',sort:'pop'};
+      renderAll(); window.scrollTo({top:0,behavior:'smooth'});
+    });
+  }
   $$('.bottom-nav button').forEach(b => b.onclick = () => {
     $$('.bottom-nav button').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
@@ -196,8 +254,8 @@ function renderNav(){
     if(n==='orders') route.page='orders';
     renderAll(); window.scrollTo({top:0,behavior:'smooth'});
   });
-  $('#locLabel').textContent = `${location.n} ${location.pin}`;
-  $('#locLabel2').textContent = `${location.n} ${location.pin}`;
+  setT('locLabel', `${location.n} ${location.pin}`);
+  setT('locLabel2', `${location.n} ${location.pin}`);
 }
 
 /* ============================================================
@@ -312,7 +370,7 @@ function homeHTML(){
     <div class="city-strip">${CITIES.slice(0,6).map(c=>`<div class="city" data-city="${c.n}"><span class="ce">${c.e}</span><b>${c.n}</b><small>${c.pin}</small></div>`).join('')}</div></section>`;
 
   if(S.testimonials) h += `<section class="section"><div class="sec-head"><div><h2>💬 ${t('secLoved')}</h2><p>${t('secLovedSub')}</p></div></div>
-    <div class="testi-grid">${TESTIMONIALS.map(t2=>`<div class="testi"><div class="stars">${'★'.repeat(t2.s)}${'☆'.repeat(5-t2.s)}</div><p>"${t2.t}"</p><div class="who"><span class="ava">${t2.e}</span><div><b>${t2.n}</b><small>${t2.c} • Verified buyer</small></div></div></div>`).join('')}</div></section>`;
+    <div class="testi-grid">${TESTIMONIALS.map(x=>`<div class="testi"><div class="stars">${'★'.repeat(x.s)}${'☆'.repeat(5-x.s)}</div><p>"${x.t}"</p><div class="who"><span class="ava">${x.e}</span><div><b>${x.n}</b><small>${x.c} • Verified buyer</small></div></div></div>`).join('')}</div></section>`;
 
   return h;
 }
@@ -395,7 +453,9 @@ function ordersHTML(){
     <div class="order-items">${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join('')}</div>
     <div class="order-meta"><span>🧾 ${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')}</span><span>💰 ${fmt(o.total)}</span><span>📅 ${o.date}</span><span>📍 ${esc(o.addr.city||location.n)}</span></div>
     <div class="track-steps">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
-    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn secondary sm" data-track="${o.id}">📍 ${t('ordTrack')}</button><button class="btn ghost sm" data-reorder="${o.id}">🔁 ${t('ordReorder')}</button></div>
+    ${o.return?`<div class="refund-line">↩ ${t('retStatus')}: <b>${retStatusName(o.return.status)}</b> • ${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</div>`:''}
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn secondary sm" data-track="${o.id}">📍 ${t('ordTrack')}</button><button class="btn ghost sm" data-reorder="${o.id}">🔁 ${t('ordReorder')}</button>
+    ${o.status===4 && !o.return ? `<button class="btn danger-ghost sm" data-return="${o.id}">↩ ${t('retTitle')}</button>` : ''}</div>
   </div>`).join('');
 }
 
@@ -462,7 +522,7 @@ function sellerHTML(){
    RENDER CORE
    ============================================================ */
 function renderPage(){
-  const pg = $('#page');
+  const pg = $('#page'); if(!pg) return;
   if(route.page==='home') pg.innerHTML = homeHTML();
   else if(route.page==='shop') pg.innerHTML = shopHTML();
   else if(route.page==='offers') pg.innerHTML = offersHTML();
@@ -491,7 +551,7 @@ function renderPage(){
     preserveRender();
   });
   const pr = $('#priceRange'); if(pr) pr.oninput = () => {
-    filters.maxPrice = +pr.value; $('#priceLbl').textContent = fmt(+pr.value);
+    filters.maxPrice = +pr.value; const pl = $('#priceLbl'); if(pl) pl.textContent = fmt(+pr.value);
     clearTimeout(pr._t); pr._t = setTimeout(preserveRender, 350);
   };
   $$('input[name=frate]', pg).forEach(r => r.onchange = () => { filters.minRating = +r.value; preserveRender(); });
@@ -499,20 +559,22 @@ function renderPage(){
   const ss = $('#sortSel'); if(ss) ss.onchange = () => { route.sort = ss.value; preserveRender(); };
   const cf = $('#clearFilters'); if(cf) cf.onclick = () => { filters={cats:new Set(),maxPrice:100000,minRating:0,vegOnly:false}; renderAll(); };
   const er = $('#emptyReset'); if(er) er.onclick = () => { filters={cats:new Set(),maxPrice:100000,minRating:0,vegOnly:false}; route.query=''; renderAll(); };
-  $$('[data-copy]', pg).forEach(b => b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy); toast(`Code ${b.dataset.copy} copied`,'📋'); });
+  $$('[data-copy]', pg).forEach(b => b.onclick = () => { try{navigator.clipboard?.writeText(b.dataset.copy);}catch{} toast(`Code ${b.dataset.copy} copied`,'📋'); });
   $$('[data-apply]', pg).forEach(b => b.onclick = () => applyCoupon(b.dataset.apply));
   $$('[data-track]', pg).forEach(b => b.onclick = () => openTrack(b.dataset.track));
+  $$('[data-return]', pg).forEach(b => b.onclick = () => openReturn(b.dataset.return));
   $$('[data-reorder]', pg).forEach(b => b.onclick = () => {
     const o = orders.find(x=>x.id===b.dataset.reorder);
     if(o){ o.items.forEach(i => { if(getP(i.id)) cart[i.id]=(cart[i.id]||0)+i.qty; }); saveCart(); updateBadges(); renderCart(); openDrawer('cartDrawer'); toast('Items added back to cart','🔁'); }
   });
-  // seller bindings
   const sAdd = $('#sAdd'); if(sAdd) sAdd.onclick = ()=>openPM(null);
   const sView = $('#sView'); if(sView) sView.onclick = ()=>{ route.page='home'; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); };
   const sSeed = $('#sSeed'); if(sSeed) sSeed.onclick = ()=>{ seedSampleOrders(); renderPage(); toast('Sample orders added','📦'); };
   $$('[data-sadv]', pg).forEach(b => b.onclick = () => {
     const o = orders.find(x=>x.id===b.dataset.sadv);
-    if(o){ o.status=Math.min(4,o.status+1); saveOrders(); renderPage(); toast('Status: '+statusName(o.status),'📦'); }
+    if(o){ o.status=Math.min(4,o.status+1); saveOrders(); renderPage();
+      notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, '📦');
+      toast('Status: '+statusName(o.status),'📦'); }
   });
   $$('[data-sedit]', pg).forEach(b => b.onclick = ()=>openPM(b.dataset.sedit));
   startFlashTimer();
@@ -520,7 +582,7 @@ function renderPage(){
 }
 function preserveRender(){ const y = window.scrollY; renderPage(); window.scrollTo(0, y); }
 function renderFooter(){
-  const f = $('#footer');
+  const f = $('#footer'); if(!f) return;
   if(!settings.sections.footer){ f.innerHTML=''; f.style.display='none'; return; }
   f.style.display='';
   const desc = HI() ? 'एक ऐप में खाना, किराना, फैशन, इलेक्ट्रॉनिक्स, दवा, घर व सर्विस — हर जगह, मिनटों में।'
@@ -594,16 +656,20 @@ function toggleWish(id){
 }
 function updateBadges(){
   const tmp = cartTotals();
-  $('#cartCount').textContent = tmp.count;
-  const w = $('#wishCount'); w.textContent = wishlist.size; w.classList.toggle('hidden', !wishlist.size);
-  $('#cartHeadCount').textContent = tmp.count?`(${tmp.count})`:'';
+  const cc = $('#cartCount'); if(cc) cc.textContent = tmp.count;
+  const w = $('#wishCount'); if(w){ w.textContent = wishlist.size; w.classList.toggle('hidden', !wishlist.size); }
+  const hc = $('#cartHeadCount'); if(hc) hc.textContent = tmp.count?`(${tmp.count})`:'';
+  const unread = notifs.filter(n=>!n.read).length;
+  const bc = $('#bellCount'); if(bc){ bc.textContent = unread; bc.classList.toggle('hidden', !unread); }
 }
 function renderCart(){
   const tt = cartTotals(), box = $('#cartItems'), foot = $('#cartFoot');
+  if(!box || !foot) return;
   const cm = settings.commerce;
   const pct = Math.min(100, ((tt.sub-tt.discount)/cm.freeAbove)*100);
   const need = fmt(cm.freeAbove-(tt.sub-tt.discount));
-  $('#cartFreeBar').innerHTML = !tt.items.length ? '' :
+  const fb = $('#cartFreeBar');
+  if(fb) fb.innerHTML = !tt.items.length ? '' :
     (tt.del===0 ? `🎉 <b>${t('freeWon')}</b><div class="free-track"><div class="free-fill" style="width:100%"></div></div>`
     : HI() ? `मुफ़्त डिलीवरी के लिए <b>${need}</b> और जोड़ें<div class="free-track"><div class="free-fill" style="width:${pct}%"></div></div>`
     : `Add <b>${need}</b> more for FREE delivery<div class="free-track"><div class="free-fill" style="width:${pct}%"></div></div>`);
@@ -627,15 +693,16 @@ function renderCart(){
     <div class="bill-row"><span class="off">${t('saveMrp')}</span><span class="off">${fmt(tt.mrp-tt.sub)}</span></div>
     <div class="bill-row total"><span>${t('total')}</span><span>${fmt(tt.total)}</span></div>
     <button class="btn primary full" id="btnCheckout" style="margin-top:12px">${t('checkoutBtn')}</button>`;
-  $('#couponApply').onclick = () => {
+  const ca = $('#couponApply');
+  if(ca) ca.onclick = () => {
     if(activeCoupon){ activeCoupon=null; LS.del('aw_coupon_v1'); }
     else { const v = $('#couponInput').value.trim().toUpperCase(); if(!applyCoupon(v)) return; }
     renderCart();
   };
-  $('#btnCheckout').onclick = openCheckout;
+  const bc2 = $('#btnCheckout'); if(bc2) bc2.onclick = openCheckout;
 }
 function renderWish(){
-  const box = $('#wishItems');
+  const box = $('#wishItems'); if(!box) return;
   const items = [...wishlist].map(getP).filter(Boolean);
   box.innerHTML = items.length ? items.map(p=>`<div class="cart-item"><span class="ce ${p.g}">${mediaHTML(p)}</span>
     <div class="ci"><b>${esc(p.n)}</b><small>${fmt(p.p)}</small>
@@ -661,17 +728,17 @@ function applyCoupon(code, silent){
 /* ============================================================
    DRAWERS + MODALS plumbing
    ============================================================ */
-function openDrawer(id){ closeAll(); $('#'+id).classList.add('show'); $('#overlay').classList.add('show'); }
-function openModal(id){ $('#'+id).classList.add('show'); }
+function openDrawer(id){ closeAll(); const d = document.getElementById(id); if(d) d.classList.add('show'); const o = $('#overlay'); if(o) o.classList.add('show'); }
+function openModal(id){ const m = document.getElementById(id); if(m) m.classList.add('show'); }
 function closeAll(){
   $$('.drawer').forEach(d=>d.classList.remove('show'));
   $$('.modal-wrap').forEach(m=>m.classList.remove('show'));
-  $('#overlay').classList.remove('show');
-  $('#sideMenu').classList.remove('show');
+  const o = $('#overlay'); if(o) o.classList.remove('show');
+  const sm = $('#sideMenu'); if(sm) sm.classList.remove('show');
 }
 function bindDrawerClose(root=document){
   $$('[data-close]',root).forEach(b=>{ if(!b._b){ b._b=true; b.onclick=closeAll; } });
-  $$('[data-close-modal]',root).forEach(b=>{ if(!b._b){ b._b=true; b.onclick=()=>$('#'+b.dataset.closeModal).classList.remove('show'); } });
+  $$('[data-close-modal]',root).forEach(b=>{ if(!b._b){ b._b=true; b.onclick=()=>{ const m = document.getElementById(b.dataset.closeModal); if(m) m.classList.remove('show'); }; } });
 }
 window.closeAll = closeAll;
 
@@ -684,7 +751,8 @@ function openProduct(id){
   const v = vertOf(p.v), c = settings.commerce;
   const revs = [...(myReviews[id]||[]), ...REVIEWS];
   const q = cart[id]||0;
-  $('#productModalBox').innerHTML = `
+  const box = $('#productModalBox'); if(!box) return;
+  box.innerHTML = `
     <div class="pm-img ${p.g}">${mediaHTML(p)}
       ${off(p)?`<span class="off" style="position:absolute;top:14px;left:14px;background:var(--primary);color:#fff;font-size:12px;font-weight:800;padding:5px 12px;border-radius:99px;z-index:2">${off(p)}% OFF</span>`:''}
       <button class="icon-btn" style="position:absolute;top:12px;right:12px;z-index:2" onclick="document.getElementById('productModal').classList.remove('show')">✕</button></div>
@@ -710,16 +778,45 @@ function openProduct(id){
       <div class="coupon-box"><input id="revInput" placeholder="${t('pWriteReview')}"/><button class="btn secondary sm" id="revAdd">${t('pPost')}</button></div>
     </div>`;
   openModal('productModal');
-  const box = $('#productModalBox');
   $('[data-pinc]',box).onclick = ()=>setQty(p.id,(cart[p.id]||0)+1);
   $('[data-pdec]',box).onclick = ()=>setQty(p.id,(cart[p.id]||0)-1);
   $('[data-padd]',box).onclick = ()=>{ setQty(p.id,(cart[p.id]||0)+1); toast('Added to cart','🛒'); };
   $('[data-pwish]',box).onclick = e=>{ toggleWish(p.id); e.target.textContent = wishlist.has(p.id)?'❤️':'🤍'; };
-  $('#revAdd').onclick = ()=>{
+  const ra = $('#revAdd');
+  if(ra) ra.onclick = ()=>{
     const txt = $('#revInput').value.trim(); if(!txt) return;
     myReviews[id] = [{n:user?.name||'You',r:5,t:txt}, ...(myReviews[id]||[])];
     LS.set('aw_reviews_v1', myReviews); openProduct(id); toast('Review posted, thanks!','⭐');
   };
+}
+
+/* ============================================================
+   ADDRESS BOOK
+   ============================================================ */
+function addrCardHTML(a, sel){
+  const lab = a.label==='home'?t('addrHome'):a.label==='work'?t('addrWork'):t('addrOther');
+  return `<div class="addr-card ${sel?'sel':''}" data-addrsel="${a.id}"><span class="alab">${a.label==='home'?'🏠':a.label==='work'?'💼':'📍'} ${lab}</span><br/>
+    <b>${esc(a.name)}</b><p>${esc(a.line)}, ${esc(a.city)} ${esc(a.pin)}<br/>📞 ${esc(a.phone)}</p></div>`;
+}
+function addrFormHTML(prefix){
+  return `<div class="addr-grid">
+      <div class="field"><label>${t('coName')}</label><input type="text" id="${prefix}Name" value="${esc(user?.name||'')}" placeholder="${t('coName')}"/></div>
+      <div class="field"><label>${t('coPhone')}</label><input type="text" id="${prefix}Phone" value="${esc(user?.phone||'')}" placeholder="10-digit mobile"/></div>
+    </div>
+    <div class="field"><label>${t('coAddrLbl')}</label><input type="text" id="${prefix}Line" placeholder="Flat, street, landmark…"/></div>
+    <div class="addr-grid">
+      <div class="field"><label>${t('coCity')}</label><input type="text" id="${prefix}City" value="${esc(location.n)}"/></div>
+      <div class="field"><label>${t('coPin')}</label><input type="text" id="${prefix}Pin" value="${esc(location.pin)}"/></div>
+    </div>
+    <div class="field"><label>${t('addrLabel')}</label><select id="${prefix}Label">
+      <option value="home">🏠 ${t('addrHome')}</option><option value="work">💼 ${t('addrWork')}</option><option value="other">📍 ${t('addrOther')}</option>
+    </select></div>`;
+}
+function readAddrForm(prefix){
+  return { id:uid('a'), label:($('#'+prefix+'Label')||{}).value||'home',
+    name:($('#'+prefix+'Name')||{value:''}).value.trim(), phone:($('#'+prefix+'Phone')||{value:''}).value.trim(),
+    line:($('#'+prefix+'Line')||{value:''}).value.trim(), city:($('#'+prefix+'City')||{value:''}).value.trim(),
+    pin:($('#'+prefix+'Pin')||{value:''}).value.trim() };
 }
 
 /* ============================================================
@@ -728,8 +825,9 @@ function openProduct(id){
 function openCheckout(){
   const tt = cartTotals();
   if(!tt.items.length){ toast('Cart is empty','🛒'); return; }
-  coState = { step:0, addr:Object.assign({name:user?.name||'',phone:user?.phone||'',line:'',city:location.n,pin:location.pin}, coState.addr||{}),
-    pay:coState.pay||'upi', upi:coState.upi&&coState.upi.id ? coState.upi : { id:'', verified:false, name:'', app:'GPay' } };
+  coState = { step:0, addr:coState.addr||{}, pay:coState.pay||'upi',
+    upi:coState.upi&&coState.upi.id ? coState.upi : { id:'', verified:false, name:'', app:'GPay' },
+    addrId:addrs.length?addrs[0].id:null, newAddr:!addrs.length };
   renderCheckout(); closeAll(); openModal('checkoutModal');
 }
 function upiPanelHTML(total){
@@ -740,24 +838,26 @@ function upiPanelHTML(total){
       <div class="upi-row"><input id="upiId" placeholder="${t('upiIdPh')}" value="${esc(u.id)}"/><button class="btn primary sm" id="upiVerify">${u.verified?'✓':''} ${t('upiVerify')}</button></div>
       <span class="upi-msg ${u.verified?'ok':''}" id="upiMsg">${u.verified?'✓ '+esc(u.name):''}</span></div>
     <div class="upi-qr"><canvas id="upiQR" width="132" height="132"></canvas>
-      <div><b>${t('upiScan')}</b><small>${t('upiScanSub')}<br/>${settings.storeName} • ${fmt(total)}</small></div></div>
+      <div><b>${t('upiScan')}</b><small>${t('upiScanSub')}<br/>${esc(settings.storeName)} • ${fmt(total)}</small></div></div>
     <div class="upi-note">🔔 ${t('upiNote')}</div>
   </div>`;
 }
+function checkoutAddrHTML(){
+  const showSaved = addrs.length && !coState.newAddr;
+  if(showSaved){
+    return `<div class="addr-head"><h4>📍 ${t('addrSaved')}</h4><button class="btn ghost sm" id="coNew">＋ ${t('addrAdd')}</button></div>
+    ${addrs.map(a=>addrCardHTML(a, a.id===coState.addrId)).join('')}`;
+  }
+  return `${addrs.length?`<button class="btn ghost sm" id="coBackSaved" style="margin-bottom:12px">← ${t('addrSaved')}</button>`:''}
+    ${addrFormHTML('co')}
+    <label class="f-check"><input type="checkbox" id="coSaveBook" checked/> 💾 ${t('addrSaveBook')}</label>`;
+}
 function renderCheckout(){
-  const tt = cartTotals(), box = $('#checkoutBox');
+  const tt = cartTotals(), box = $('#checkoutBox'); if(!box) return;
   if(coState.step===0) box.innerHTML = `
     <div class="modal-head"><h3>🧾 ${HI()?'चेकआउट':'Checkout'} — ${t('coAddr')}</h3><button class="icon-btn" onclick="document.getElementById('checkoutModal').classList.remove('show')">✕</button></div>
     <div class="modal-body"><div class="co-steps"><div class="active">1. ${t('coAddr')}</div><div>2. ${t('coPay')}</div><div>3. ${t('coDone')}</div></div>
-    <div class="addr-grid">
-      <div class="field"><label>${t('coName')}</label><input type="text" id="coName" value="${esc(coState.addr.name)}" placeholder="${t('coName')}"/></div>
-      <div class="field"><label>${t('coPhone')}</label><input type="text" id="coPhone" value="${esc(coState.addr.phone)}" placeholder="10-digit mobile"/></div>
-    </div>
-    <div class="field"><label>${t('coAddrLbl')}</label><input type="text" id="coLine" value="${esc(coState.addr.line)}" placeholder="Flat, street, landmark…"/></div>
-    <div class="addr-grid">
-      <div class="field"><label>${t('coCity')}</label><input type="text" id="coCity" value="${esc(coState.addr.city)}"/></div>
-      <div class="field"><label>${t('coPin')}</label><input type="text" id="coPin" value="${esc(coState.addr.pin)}"/></div>
-    </div>
+    ${checkoutAddrHTML()}
     <div class="bill-row total"><span>${t('coPayable')}</span><span>${fmt(tt.total)}</span></div>
     <button class="btn primary full" id="coNext" style="margin-top:12px">${t('coContinue')}</button></div>`;
   else if(coState.step===1) box.innerHTML = `
@@ -773,9 +873,21 @@ function renderCheckout(){
     <div style="display:flex;gap:8px;margin-top:12px"><button class="btn secondary" id="coBack">${t('coBack')}</button>
     <button class="btn primary" style="flex:1" id="coPlace">${t('coPlace')} • ${fmt(tt.total)}</button></div></div>`;
   if(coState.step===0){
-    $('#coNext').onclick = ()=>{
-      coState.addr = { name:$('#coName').value.trim(), phone:$('#coPhone').value.trim(), line:$('#coLine').value.trim(), city:$('#coCity').value.trim(), pin:$('#coPin').value.trim() };
-      if(!coState.addr.name || !coState.addr.phone || !coState.addr.line){ toast('Please fill name, phone & address','⚠️'); return; }
+    $$('[data-addrsel]',box).forEach(el=>el.onclick=()=>{ coState.addrId=el.dataset.addrsel; renderCheckout(); });
+    const cn = $('#coNext');
+    const nb = $('#coNew'); if(nb) nb.onclick = ()=>{ coState.newAddr=true; renderCheckout(); };
+    const bs = $('#coBackSaved'); if(bs) bs.onclick = ()=>{ coState.newAddr=false; renderCheckout(); };
+    if(cn) cn.onclick = ()=>{
+      if(addrs.length && !coState.newAddr){
+        const a = addrs.find(x=>x.id===coState.addrId) || addrs[0];
+        coState.addr = { name:a.name, phone:a.phone, line:a.line, city:a.city, pin:a.pin };
+      } else {
+        const a = readAddrForm('co');
+        if(!a.name || !a.phone || !a.line){ toast('Please fill name, phone & address','⚠️'); return; }
+        coState.addr = a;
+        const sb = $('#coSaveBook');
+        if(sb && sb.checked){ addrs.unshift(a); saveAddrs(); }
+      }
       coState.step=1; renderCheckout();
     };
   } else if(coState.step===1){
@@ -784,12 +896,13 @@ function renderCheckout(){
     const qc = $('#upiQR'); if(qc) drawUPIQR(qc, `aw-${Math.round(tt.total)}-${coState.upi.app}`);
     const ui = $('#upiId');
     if(ui){
-      ui.oninput = ()=>{ coState.upi.id = ui.value.trim(); coState.upi.verified = false; $('#upiMsg').textContent=''; $('#upiMsg').className='upi-msg'; };
-      $('#upiVerify').onclick = ()=>{
+      ui.oninput = ()=>{ coState.upi.id = ui.value.trim(); coState.upi.verified = false; const m0=$('#upiMsg'); if(m0){ m0.textContent=''; m0.className='upi-msg'; } };
+      const uv = $('#upiVerify');
+      if(uv) uv.onclick = ()=>{
         const v = ui.value.trim(), msg = $('#upiMsg');
-        if(!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(v)){ msg.textContent = '⚠️ '+t('upiInvalid'); msg.className='upi-msg err'; return; }
-        msg.textContent = '⏳ '+t('upiVerifying'); msg.className='upi-msg';
-        $('#upiVerify').disabled = true;
+        if(!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(v)){ if(msg){ msg.textContent = '⚠️ '+t('upiInvalid'); msg.className='upi-msg err'; } return; }
+        if(msg){ msg.textContent = '⏳ '+t('upiVerifying'); msg.className='upi-msg'; }
+        uv.disabled = true;
         setTimeout(()=>{
           const nm = v.split('@')[0].replace(/[._\-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
           coState.upi = { id:v, verified:true, name:nm||'UPI User', app:coState.upi.app };
@@ -797,12 +910,13 @@ function renderCheckout(){
         }, 1100);
       };
     }
-    $('#coBack').onclick = ()=>{ coState.step=0; renderCheckout(); };
-    $('#coPlace').onclick = ()=>{
+    const bk = $('#coBack'); if(bk) bk.onclick = ()=>{ coState.step=0; renderCheckout(); };
+    const pl = $('#coPlace');
+    if(pl) pl.onclick = ()=>{
       if(coState.pay==='upi' && !coState.upi.verified){ toast(HI()?'पहले अपनी UPI ID वेरिफाई करें':'Please verify your UPI ID first','⚠️'); return; }
-      const btn = $('#coPlace'); btn.disabled = true;
+      pl.disabled = true;
       const payLabel = coState.pay==='upi' ? `UPI (${coState.upi.app})` : coState.pay.toUpperCase();
-      btn.textContent = coState.pay==='upi' ? `⏳ ${t('upiWait')} ${coState.upi.app}…` : t('coPlacing');
+      pl.textContent = coState.pay==='upi' ? `⏳ ${t('upiWait')} ${coState.upi.app}…` : t('coPlacing');
       setTimeout(()=>{
         const o = { id:uid('AW').toUpperCase(), items:tt.items.map(i=>({id:i.p.id,qty:i.qty,price:i.p.p})),
           total:Math.round(tt.total), sub:Math.round(tt.sub), discount:Math.round(tt.discount),
@@ -810,82 +924,232 @@ function renderCheckout(){
           addr:coState.addr, pay:payLabel, upi:coState.pay==='upi'?coState.upi.id:'', placedAt:Date.now() };
         orders.push(o); saveOrders();
         cart={}; activeCoupon=null; saveCart(); LS.del('aw_coupon_v1'); updateBadges();
+        notify(HI()?'ऑर्डर कन्फर्म 🎉':'Order confirmed 🎉', `#${o.id} • ${fmt(o.total)}`, '🎉');
         const soon = HI() ? `${esc(o.addr.city)} में जल्द आ रहा है` : `arriving soon at ${esc(o.addr.city)}`;
         box.innerHTML = `<div class="modal-body"><div class="success-box"><div class="big">🎉</div>
           <h2>${t('coSuccess')}</h2><p class="muted">${HI()?'ऑर्डर':'Order'} <b>#${o.id}</b> • ${fmt(o.total)} • ${soon}</p>
           <div class="track-steps" style="margin:18px 0">${[0,1,2,3,4].map(i=>`<div class="tstep ${i===0?'done':''}"><div class="tdot">${i===0?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
           <div style="display:flex;gap:8px;justify-content:center"><button class="btn primary" id="okTrack">📍 ${t('coTrack')}</button>
           <button class="btn secondary" id="okShop">${t('coShop')}</button></div></div></div>`;
-        $('#okTrack').onclick = ()=>{ $('#checkoutModal').classList.remove('show'); route.page='orders'; renderAll(); openTrack(o.id); };
-        $('#okShop').onclick = ()=>{ $('#checkoutModal').classList.remove('show'); route.page='home'; renderAll(); };
+        const ot = $('#okTrack'); if(ot) ot.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='orders'; renderAll(); openTrack(o.id); };
+        const os = $('#okShop'); if(os) os.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='home'; renderAll(); };
       }, coState.pay==='upi' ? 1700 : 1200);
     };
   }
 }
+
+/* ============================================================
+   LIVE TRACKER MAP + ORDER TRACKING
+   ============================================================ */
+let trackToken = 0;
+function trackerMapHTML(o){
+  const rider = riderFor(o);
+  const etas = HI() ? ['35–45 मि.','25–35 मि.','12–20 मि.','3–8 मि.', statusName(4)] : ['35–45 min','25–35 min','12–20 min','3–8 min', statusName(4)];
+  return `<div class="map-wrap">
+    <svg viewBox="0 0 640 250">
+      <rect x="0" y="0" width="640" height="250" rx="14" style="fill:var(--surface-2)"/>
+      <rect x="30" y="30" width="150" height="80" rx="10" style="fill:var(--surface-3)"/>
+      <rect x="230" y="20" width="120" height="70" rx="10" style="fill:var(--surface-3)"/>
+      <rect x="400" y="30" width="200" height="80" rx="10" style="fill:var(--surface-3)"/>
+      <rect x="40" y="150" width="200" height="70" rx="10" style="fill:var(--surface-3)"/>
+      <rect x="300" y="160" width="130" height="60" rx="10" style="fill:var(--surface-3)"/>
+      <rect x="470" y="150" width="140" height="70" rx="10" style="fill:var(--surface-3)"/>
+      <line x1="0" y1="125" x2="640" y2="125" style="stroke:var(--surface)" stroke-width="20"/>
+      <line x1="0" y1="235" x2="640" y2="235" style="stroke:var(--surface)" stroke-width="16"/>
+      <line x1="0" y1="8" x2="640" y2="8" style="stroke:var(--surface)" stroke-width="14"/>
+      <line x1="205" y1="0" x2="205" y2="250" style="stroke:var(--surface)" stroke-width="18"/>
+      <line x1="445" y1="0" x2="445" y2="250" style="stroke:var(--surface)" stroke-width="18"/>
+      <line x1="0" y1="125" x2="640" y2="125" style="stroke:var(--border)" stroke-width="2" stroke-dasharray="12 10"/>
+      <rect x="480" y="165" width="110" height="44" rx="10" fill="#bbf7d0" opacity=".8"/>
+      <text x="535" y="193" text-anchor="middle" font-size="22">🌳</text>
+      <ellipse cx="110" cy="185" rx="52" ry="20" fill="#bae6fd" opacity=".8"/>
+      <path id="routePath" d="M 70,205 C 190,205 170,120 290,120 S 450,150 565,60" fill="none" style="stroke:var(--primary)" stroke-width="5" stroke-dasharray="11 9" stroke-linecap="round"/>
+      <circle cx="70" cy="205" r="18" fill="#fff" stroke="var(--border)" stroke-width="2"/>
+      <text x="70" y="213" text-anchor="middle" font-size="20">🏪</text>
+      <circle cx="565" cy="60" r="17" fill="var(--primary)" opacity=".25"><animate attributeName="r" values="14;26" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="1.8s" repeatCount="indefinite"/></circle>
+      <circle cx="565" cy="60" r="18" fill="#fff" stroke="var(--success)" stroke-width="3"/>
+      <text x="565" y="68" text-anchor="middle" font-size="20">🏠</text>
+      <text x="70" y="235" text-anchor="middle" font-size="11" font-weight="800" style="fill:var(--muted)">${t('mapStore')}</text>
+      <text x="565" y="30" text-anchor="middle" font-size="11" font-weight="800" style="fill:var(--muted)">${t('mapHome')}</text>
+      <g id="riderMark">
+        <circle r="17" cx="0" cy="0" fill="#fff" style="stroke:var(--primary)" stroke-width="3.5"/>
+        <text x="0" y="8" text-anchor="middle" font-size="20">🛵</text>
+      </g>
+    </svg>
+    <div class="map-top">
+      <span class="map-eta">⏱️ ${t('mapEta')} <b>${etas[Math.min(4,o.status)]}</b></span>
+      <span class="rider-chip">🛵 ${rider.name} • ★ ${rider.rating}</span>
+    </div>
+  </div>`;
+}
+function animateRider(o, token){
+  const path = document.getElementById('routePath');
+  const mark = document.getElementById('riderMark');
+  if(!path || !mark) return;
+  const len = path.getTotalLength();
+  let cur = 0;
+  const target = o.status >= 4 ? 1 : Math.min(0.95, (o.status + 0.55) / 4);
+  const step = () => {
+    if(token !== trackToken) return;
+    const tm = document.getElementById('trackModal');
+    if(!tm || !tm.classList.contains('show')) return;
+    if(!document.body.contains(mark)) return;
+    cur += (target - cur) * 0.045;
+    if(Math.abs(target - cur) < 0.002) cur = target;
+    try{
+      const pt = path.getPointAtLength(len * cur);
+      mark.setAttribute('transform', `translate(${pt.x},${pt.y})`);
+    }catch{}
+    if(cur !== target) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 function openTrack(id){
   const o = orders.find(x=>x.id===id); if(!o) return;
+  const box = $('#trackBox'); if(!box) return;
   const items = o.items.map(i=>{const p=getP(i.id);return p?`${p.e} ${p.n} × ${i.qty}`:'•';});
+  const rider = riderFor(o);
   const riderTxt = o.status>=4 ? (HI()?'डिलीवर हो गया। आनंद लें!':'Delivered. Enjoy!')
-    : (HI()?'राइडर रास्ते में है — जल्द पहुंचेगा':'Arriving soon — rider is '+['being assigned','packing your items','on the way','nearby'][Math.min(o.status,3)]+'…');
-  $('#trackBox').innerHTML = `<div class="modal-head"><h3>📍 #${o.id}</h3><button class="icon-btn" onclick="document.getElementById('trackModal').classList.remove('show')">✕</button></div>
+    : (HI()?`${rider.name} रास्ते में है — जल्द पहुंचेगा`:`${rider.name} is ${['being assigned','packing your items','on the way','nearby'][Math.min(o.status,3)]} — arriving soon…`);
+  box.innerHTML = `<div class="modal-head"><h3>📍 #${o.id}</h3><button class="icon-btn" onclick="document.getElementById('trackModal').classList.remove('show')">✕</button></div>
   <div class="modal-body">
-    <div class="track-steps" style="margin:8px 0 18px">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
-    <div class="rev"><b>🛵 Rider: Arjun • ★ 4.9</b><p>${riderTxt}</p></div>
+    ${trackerMapHTML(o)}
+    <div class="track-steps" style="margin:8px 0 14px">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
+    <div class="rev"><b>🛵 ${t('mapRider')}: ${rider.name} • ★ ${rider.rating}</b><p>${riderTxt}</p></div>
+    ${o.return?`<div class="rev"><b>↩ ${t('retStatus')}: ${retStatusName(o.return.status)}</b>
+      <div class="track-steps" style="margin-top:10px">${[0,1,2,3].map(i=>`<div class="tstep ${i<=o.return.status?'done':''}"><div class="tdot">${i<=o.return.status?'✓':i+1}</div>${retStatusName(i)}</div>`).join('')}</div>
+      <p>${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</p></div>`:''}
     <div class="rev"><b>🧾 ${t('coItems')}</b><p>${items.map(esc).join('<br/>')}</p></div>
     <div class="rev"><b>📍 ${t('pDeliverTo')}</b><p>${esc(o.addr.name)} • ${esc(o.addr.line)}, ${esc(o.addr.city)} ${esc(o.addr.pin)}</p></div>
     <div class="bill-row total"><span>${HI()?'भुगतान':'Paid via'} ${esc(o.pay)}</span><span>${fmt(o.total)}</span></div>
     ${o.status<4?`<button class="btn secondary full" id="simNext" style="margin-top:12px">🔄 ${HI()?'स्टेटस रिफ्रेश करें':'Refresh live status'}</button>`:''}
   </div>`;
   openModal('trackModal');
-  const sn = $('#simNext'); if(sn) sn.onclick = ()=>{ o.status=Math.min(4,o.status+1); saveOrders(); openTrack(id); if(route.page==='orders')renderPage(); toast('Status: '+statusName(o.status),'📦'); };
+  trackToken++;
+  animateRider(o, trackToken);
+  const sn = $('#simNext');
+  if(sn) sn.onclick = ()=>{
+    o.status=Math.min(4,o.status+1); saveOrders();
+    notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, o.status===4?'✅':'📦');
+    openTrack(id); if(route.page==='orders')renderPage(); toast('Status: '+statusName(o.status),'📦');
+  };
 }
+
+/* ============================================================
+   RETURNS & REFUNDS
+   ============================================================ */
+function openReturn(id){
+  const o = orders.find(x=>x.id===id); if(!o || o.return) return;
+  const box = $('#returnBox'); if(!box) return;
+  box.innerHTML = `<div class="modal-head"><h3>↩ ${t('retTitle')} — #${o.id}</h3>
+    <button class="icon-btn" onclick="document.getElementById('returnModal').classList.remove('show')">✕</button></div>
+  <div class="modal-body">
+    <div class="rev"><b>💰 ${fmt(o.total)}</b><p>${t('retTo')} <b>${esc(o.pay)}</b> ${HI()?'में 3–5 दिन में':'within 3–5 days'}</p></div>
+    <h4 class="mt">${t('retReason')}</h4>
+    ${RETURN_REASONS.map((r,i)=>`<label class="reason-row ${i===0?'sel':''}"><input type="radio" name="rreason" value="${i}" ${i===0?'checked':''}/> ${HI()?r.hi:r.en}</label>`).join('')}
+    <div class="field" style="margin-top:10px"><label>${t('retDetail')}</label><textarea id="retDetail" rows="2" placeholder="${t('retDetail')}"></textarea></div>
+    <button class="btn primary full" id="retGo">${t('retConfirm')}</button>
+  </div>`;
+  openModal('returnModal');
+  $$('input[name=rreason]',box).forEach(r=>r.onchange=()=>{ $$('.reason-row',box).forEach(x=>x.classList.remove('sel')); r.closest('.reason-row').classList.add('sel'); });
+  const go = $('#retGo');
+  if(go) go.onclick = ()=>{
+    const sel = ($('input[name=rreason]:checked',box)||{value:0}).value;
+    o.return = { reason:+sel, detail:($('#retDetail')||{value:''}).value.trim(), status:0, ts:Date.now(), amt:o.total };
+    saveOrders();
+    const m = $('#returnModal'); if(m) m.classList.remove('show');
+    notify(HI()?'रिटर्न रिक्वेस्ट ↩':'Return requested ↩', `#${o.id} • ${retStatusName(0)}`, '↩');
+    if(route.page==='orders') renderPage();
+    toast(HI()?'रिटर्न रिक्वेस्ट हो गई':'Return requested','↩');
+  };
+}
+/* demo live simulation: orders + refunds advance over time */
 setInterval(()=>{
   let moved = false;
-  orders.forEach(o=>{ if(o.status<4 && Math.random()<.25){ o.status++; moved=true; } });
+  orders.forEach(o=>{
+    if(o.status<4 && Math.random()<.25){
+      o.status++; moved=true;
+      notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, o.status===4?'✅':'📦');
+    } else if(o.return && o.return.status<3 && Math.random()<.22){
+      o.return.status++; moved=true;
+      const done = o.return.status===3;
+      notify(HI()?'रिफंड अपडेट':'Refund update',
+        done ? `${fmt(o.return.amt||o.total)} → ${o.pay} ✓` : `#${o.id}: ${retStatusName(o.return.status)}`,
+        done?'💰':'↩');
+    }
+  });
   if(moved){ saveOrders(); if(route.page==='orders') renderPage(); }
 }, 25000);
 
 /* ============================================================
-   LOCATION + AUTH + SEARCH
+   LOCATION + AUTH (+ address manager) + SEARCH
    ============================================================ */
 function renderCities(f=''){
   const q = f.toLowerCase();
   const list = CITIES.filter(c=>(c.n+c.pin).toLowerCase().includes(q));
-  $('#cityGrid').innerHTML = list.map(c=>`<div class="city" data-pick="${c.n}"><span class="ce">${c.e}</span><b>${c.n}</b><small>${c.pin}</small></div>`).join('') || `<span class="muted small">${t('noMatch')}</span>`;
+  const grid = $('#cityGrid'); if(!grid) return;
+  grid.innerHTML = list.map(c=>`<div class="city" data-pick="${c.n}"><span class="ce">${c.e}</span><b>${c.n}</b><small>${c.pin}</small></div>`).join('') || `<span class="muted small">${t('noMatch')}</span>`;
   $$('#cityGrid [data-pick]').forEach(b=>b.onclick=()=>{
     location = CITIES.find(x=>x.n===b.dataset.pick); LS.set('aw_loc_v1',location);
-    renderNav(); $('#locationModal').classList.remove('show'); renderPage(); toast(`Delivering to ${location.n} 📍`,'📍');
+    renderNav(); const lm=$('#locationModal'); if(lm) lm.classList.remove('show'); renderPage(); toast(`Delivering to ${location.n} 📍`,'📍');
   });
 }
 function openAuth(mode='login'){
   const render = ()=>{
-    $('#tabLogin').classList.toggle('active', mode==='login');
-    $('#tabSignup').classList.toggle('active', mode==='signup');
-    $('#authForm').innerHTML = user
-      ? `<div class="center" style="padding:10px 0"><div style="font-size:56px">👋</div><h3 style="margin:8px 0">${t('auHi')}, ${esc(user.name)}!</h3><p class="muted small">${esc(user.email)}</p>
-         <button class="btn secondary full" id="btnLogout">${t('auLogout')}</button></div>`
-      : `${mode==='signup'?`<div class="field"><label>${t('auName')}</label><input type="text" id="auName" placeholder="${t('auName')}"/></div>`:''}
-        <div class="field"><label>${t('auEmail')}</label><input type="text" id="auEmail" placeholder="you@email.com"/></div>
-        <div class="field"><label>${t('auPhone')}</label><input type="text" id="auPhone" placeholder="10-digit mobile"/></div>
-        <button class="btn primary full" id="auGo">${mode==='login'?t('auLoginBtn'):t('auCreateBtn')}</button>`;
-    if(user){ const lo=$('#btnLogout'); if(lo) lo.onclick=()=>{ user=null; LS.del('aw_user_v1'); toast('Logged out','👋'); render(); }; return; }
-    $('#auGo').onclick = ()=>{
+    const tl = $('#tabLogin'), ts = $('#tabSignup');
+    if(tl) tl.classList.toggle('active', mode==='login');
+    if(ts) ts.classList.toggle('active', mode==='signup');
+    const form = $('#authForm'); if(!form) return;
+    if(user){
+      const lab = l => l==='home'?'🏠 '+t('addrHome'):l==='work'?'💼 '+t('addrWork'):'📍 '+t('addrOther');
+      form.innerHTML = `<div class="center" style="padding:6px 0"><div style="font-size:48px">👋</div>
+        <h3 style="margin:8px 0 2px">${t('auHi')}, ${esc(user.name)}!</h3><p class="muted small">${esc(user.email)} • ${esc(user.phone||'')}</p></div>
+        <div class="addr-head"><h4>📍 ${t('addrTitle')}</h4></div>
+        <div id="auAddrList">${addrs.length ? addrs.map(a=>`<div class="addr-card sel" style="cursor:default"><span class="alab">${lab(a.label)}</span>
+          <button class="adel" data-aadel="${a.id}">🗑️</button><br/><b>${esc(a.name)}</b><p>${esc(a.line)}, ${esc(a.city)} ${esc(a.pin)}<br/>📞 ${esc(a.phone)}</p></div>`).join('')
+        : `<p class="muted small center">${t('addrEmpty')}</p>`}</div>
+        <button class="btn secondary full sm" id="auAddrToggle">＋ ${t('addrAdd')}</button>
+        <div id="auAddrForm" class="hidden" style="margin-top:10px">${addrFormHTML('auA')}
+          <button class="btn primary full" id="auAddrSave">${t('addrSave')}</button></div>
+        <button class="btn ghost full" id="btnLogout" style="margin-top:10px">${t('auLogout')}</button>`;
+      const lo = $('#btnLogout'); if(lo) lo.onclick = ()=>{ user=null; LS.del('aw_user_v1'); toast('Logged out','👋'); render(); };
+      const tg = $('#auAddrToggle');
+      if(tg) tg.onclick = ()=>{ const f=$('#auAddrForm'); if(f) f.classList.toggle('hidden'); };
+      const sv = $('#auAddrSave');
+      if(sv) sv.onclick = ()=>{
+        const a = readAddrForm('auA');
+        if(!a.name||!a.phone||!a.line){ toast('Please fill name, phone & address','⚠️'); return; }
+        addrs.unshift(a); saveAddrs(); render(); toast(HI()?'पता सेव हो गया':'Address saved','📍');
+      };
+      $$('[data-aadel]',form).forEach(b=>b.onclick=()=>{ addrs = addrs.filter(x=>x.id!==b.dataset.aadel); saveAddrs(); render(); });
+      return;
+    }
+    form.innerHTML = `${mode==='signup'?`<div class="field"><label>${t('auName')}</label><input type="text" id="auName" placeholder="${t('auName')}"/></div>`:''}
+      <div class="field"><label>${t('auEmail')}</label><input type="text" id="auEmail" placeholder="you@email.com"/></div>
+      <div class="field"><label>${t('auPhone')}</label><input type="text" id="auPhone" placeholder="10-digit mobile"/></div>
+      <button class="btn primary full" id="auGo">${mode==='login'?t('auLoginBtn'):t('auCreateBtn')}</button>`;
+    const go = $('#auGo');
+    if(go) go.onclick = ()=>{
       const email = $('#auEmail').value.trim(), phone = $('#auPhone').value.trim();
-      const name = mode==='signup' ? $('#auName').value.trim() : (email.split('@')[0]||'Friend');
+      const nm = $('#auName');
+      const name = mode==='signup' ? (nm?nm.value.trim():'') : (email.split('@')[0]||'Friend');
       if(!email || !phone){ toast('Enter email & phone','⚠️'); return; }
       user = { name: name||'Friend', email, phone }; LS.set('aw_user_v1', user);
-      $('#authModal').classList.remove('show'); render(); toast(`Welcome, ${user.name}!`,'🎉');
+      const am=$('#authModal'); if(am) am.classList.remove('show'); render(); toast(`Welcome, ${user.name}!`,'🎉');
     };
   };
-  $('#tabLogin').onclick = ()=>{ mode='login'; render(); };
-  $('#tabSignup').onclick = ()=>{ mode='signup'; render(); };
+  const tl = $('#tabLogin'), ts = $('#tabSignup');
+  if(tl) tl.onclick = ()=>{ mode='login'; render(); };
+  if(ts) ts.onclick = ()=>{ mode='signup'; render(); };
   render(); openModal('authModal');
 }
 function bindSearch(inputEl){
+  if(!inputEl) return ()=>{};
   const sug = $('#searchSuggest');
-  const go = q => { route={page:'shop',vertical:'all',category:'all',query:q,sort:'pop'}; filters={cats:new Set(),maxPrice:100000,minRating:0,vegOnly:false}; sug.classList.remove('show'); renderAll(); window.scrollTo({top:0,behavior:'smooth'}); };
+  const go = q => { route={page:'shop',vertical:'all',category:'all',query:q,sort:'pop'}; filters={cats:new Set(),maxPrice:100000,minRating:0,vegOnly:false}; if(sug) sug.classList.remove('show'); renderAll(); window.scrollTo({top:0,behavior:'smooth'}); };
   inputEl.addEventListener('input', ()=>{
     const q = inputEl.value.trim().toLowerCase();
+    if(!sug) return;
     if(q.length<2){ sug.classList.remove('show'); return; }
     const hits = getProducts().filter(p=>(p.n+' '+p.c+' '+p.s).toLowerCase().includes(q)).slice(0,6);
     sug.innerHTML = hits.map(p=>`<div class="sug-item" data-s="${p.id}"><span class="em ${p.g}">${p.e}</span><div><b>${esc(p.n)}</b><small>${esc(p.c)} • ${fmt(p.p)}</small></div></div>`).join('')
@@ -894,7 +1158,7 @@ function bindSearch(inputEl){
     $$('[data-s]',sug).forEach(b=>b.onclick=()=>{ inputEl.value=''; sug.classList.remove('show'); openProduct(b.dataset.s); });
   });
   inputEl.addEventListener('keydown', e=>{ if(e.key==='Enter' && inputEl.value.trim()) go(inputEl.value.trim()); });
-  document.addEventListener('click', e=>{ if(!e.target.closest('.search-wrap')) sug.classList.remove('show'); });
+  document.addEventListener('click', e=>{ if(sug && !e.target.closest('.search-wrap')) sug.classList.remove('show'); });
   return go;
 }
 
@@ -903,9 +1167,11 @@ function bindSearch(inputEl){
    ============================================================ */
 const CUSTOM_TABS = [['store','🏪 Store'],['theme','🎨 Theme'],['home','🏠 Homepage'],['commerce','💰 Commerce'],['products','📦 Products'],['data','💾 Data']];
 function renderCustomizer(tab='store'){
-  $('#customTabs').innerHTML = CUSTOM_TABS.map(([id,l])=>`<button class="${id===tab?'active':''}" data-ct="${id}">${l}</button>`).join('');
+  const tabs = $('#customTabs'); if(!tabs) return;
+  tabs.innerHTML = CUSTOM_TABS.map(([id,l])=>`<button class="${id===tab?'active':''}" data-ct="${id}">${l}</button>`).join('');
   $$('#customTabs button').forEach(b=>b.onclick=()=>renderCustomizer(b.dataset.ct));
-  const B = $('#customBody'), S = settings;
+  const B = $('#customBody'); if(!B) return;
+  const S = settings;
   if(tab==='store') B.innerHTML = `
     <div class="c-group"><h4>🌐 Language / भाषा</h4><div class="seg" id="cLang">
       <button data-l="en" class="${S.lang==='en'?'active':''}">English</button>
@@ -963,11 +1229,12 @@ function renderCustomizer(tab='store'){
       <p class="muted small center">${all.length} products live in your store</p>
       <div class="field"><input type="text" id="cPSearch" placeholder="🔍 Search products…"/></div>
       <div id="cPList">${all.slice(0,30).map(pmRow).join('')}</div>`;
-    $('#cAddP').onclick = ()=>openPM(null);
-    $('#cPSearch').oninput = e=>{
+    const ap = $('#cAddP'); if(ap) ap.onclick = ()=>openPM(null);
+    const ps = $('#cPSearch');
+    if(ps) ps.oninput = e=>{
       const q = e.target.value.toLowerCase();
       const hits = getProducts().filter(p=>(p.n+p.c+p.v).toLowerCase().includes(q)).slice(0,40);
-      $('#cPList').innerHTML = hits.map(pmRow).join(''); bindPmRows();
+      const pl = $('#cPList'); if(pl) pl.innerHTML = hits.map(pmRow).join(''); bindPmRows();
     };
     bindPmRows();
   }
@@ -989,7 +1256,7 @@ function bindPmRows(){
   $$('#cPList [data-pedit]').forEach(b=>b.onclick=()=>openPM(b.dataset.pedit));
   $$('#cPList [data-pdel]').forEach(b=>b.onclick=()=>{
     const p = getP(b.dataset.pdel);
-    if(!confirm(`Delete "${p.n}"?`)) return;
+    if(!p || !confirm(`Delete "${p.n}"?`)) return;
     extraProducts = extraProducts.filter(x=>x.id!==p.id); LS.set('aw_products_extra_v1', extraProducts);
     if(SEED_PRODUCTS.find(x=>x.id===p.id)){ deletedIds.push(p.id); LS.set('aw_products_deleted_v1', deletedIds); }
     delete editedProducts[p.id]; LS.set('aw_products_edited_v1', editedProducts);
@@ -999,51 +1266,53 @@ function bindPmRows(){
 }
 function bindCustomizer(tab){
   const live = ()=>{ saveSettings(); applySettings(); applyChromeI18n(); renderNav(); renderPage(); };
+  const on = (id, ev, fn) => { const el = document.getElementById(id); if(el) el[ev] = fn; };
   if(tab==='store'){
     $$('#cLang button').forEach(b=>b.onclick=()=>{ settings.lang=b.dataset.l; saveSettings(); renderAll(); renderCustomizer('store'); });
-    $('#cLogo').oninput = e=>{ settings.logoEmoji=e.target.value; live(); };
-    $('#cLogoFile').onchange = async e=>{
+    on('cLogo','oninput', e=>{ settings.logoEmoji=e.target.value; live(); });
+    on('cLogoFile','onchange', async e=>{
       const f = e.target.files[0]; if(!f) return;
       try{ settings.logoImg = await fileToDataURL(f, 256, .85); live(); renderCustomizer('store'); toast('Logo updated','🖼️'); }
       catch{ toast('Could not read that image','⚠️'); }
-    };
-    $('#cLogoRm').onclick = ()=>{ settings.logoImg=''; live(); renderCustomizer('store'); };
-    $('#cName1').oninput = e=>{ settings.storeName=e.target.value; live(); };
-    $('#cName2').oninput = e=>{ settings.storeName2=e.target.value; live(); };
-    $('#cTag').oninput = e=>{ settings.tagline=e.target.value; live(); };
-    $('#cAnnShow').onchange = e=>{ settings.showAnnounce=e.target.checked; live(); };
-    $('#cAnn').oninput = e=>{ settings.announce=e.target.value; live(); };
-    $('#cHB').oninput = e=>{ settings.heroBadge=e.target.value; live(); };
-    $('#cHT').oninput = e=>{ settings.heroTitle=e.target.value; live(); };
-    $('#cHS').oninput = e=>{ settings.heroSub=e.target.value; live(); };
-    $('#cHC1').oninput = e=>{ settings.heroCta1=e.target.value; live(); };
-    $('#cHC2').oninput = e=>{ settings.heroCta2=e.target.value; live(); };
+    });
+    on('cLogoRm','onclick', ()=>{ settings.logoImg=''; live(); renderCustomizer('store'); });
+    on('cName1','oninput', e=>{ settings.storeName=e.target.value; live(); });
+    on('cName2','oninput', e=>{ settings.storeName2=e.target.value; live(); });
+    on('cTag','oninput', e=>{ settings.tagline=e.target.value; live(); });
+    on('cAnnShow','onchange', e=>{ settings.showAnnounce=e.target.checked; live(); });
+    on('cAnn','oninput', e=>{ settings.announce=e.target.value; live(); });
+    on('cHB','oninput', e=>{ settings.heroBadge=e.target.value; live(); });
+    on('cHT','oninput', e=>{ settings.heroTitle=e.target.value; live(); });
+    on('cHS','oninput', e=>{ settings.heroSub=e.target.value; live(); });
+    on('cHC1','oninput', e=>{ settings.heroCta1=e.target.value; live(); });
+    on('cHC2','oninput', e=>{ settings.heroCta2=e.target.value; live(); });
   }
   if(tab==='theme'){
     $$('#cMode button').forEach(b=>b.onclick=()=>{ settings.theme.mode=b.dataset.m; live(); renderCustomizer('theme'); });
     $$('#customBody .swatch[data-p]').forEach(s=>s.onclick=()=>{ settings.theme.primary=s.dataset.p; settings.theme.secondary=s.dataset.s; live(); renderCustomizer('theme'); });
-    $('#cP1').oninput = e=>{ settings.theme.primary=e.target.value; live(); };
-    $('#cP2').oninput = e=>{ settings.theme.secondary=e.target.value; live(); };
-    $('#cFont').onchange = e=>{ settings.theme.font=e.target.value; live(); };
-    $('#cR').oninput = e=>{ settings.theme.radius=+e.target.value; $('#cRv').textContent=e.target.value+'px'; live(); };
+    on('cP1','oninput', e=>{ settings.theme.primary=e.target.value; live(); });
+    on('cP2','oninput', e=>{ settings.theme.secondary=e.target.value; live(); });
+    on('cFont','onchange', e=>{ settings.theme.font=e.target.value; live(); });
+    on('cR','oninput', e=>{ settings.theme.radius=+e.target.value; setT('cRv', e.target.value+'px'); live(); });
     $$('#cCard button').forEach(b=>b.onclick=()=>{ settings.theme.cardStyle=b.dataset.c; live(); renderCustomizer('theme'); });
   }
   if(tab==='home') $$('[data-sec]').forEach(x=>x.onchange=()=>{ settings.sections[x.dataset.sec]=x.checked; live(); });
   if(tab==='commerce'){
-    $('#cCur').oninput = e=>{ settings.commerce.currency=e.target.value||'₹'; live(); renderCart(); };
-    $('#cDel').oninput = e=>{ settings.commerce.deliveryFee=+e.target.value||0; live(); renderCart(); };
-    $('#cFree').oninput = e=>{ settings.commerce.freeAbove=+e.target.value||0; live(); renderCart(); };
-    $('#cTax').oninput = e=>{ settings.commerce.taxPct=+e.target.value||0; live(); renderCart(); };
+    on('cCur','oninput', e=>{ settings.commerce.currency=e.target.value||'₹'; live(); renderCart(); });
+    on('cDel','oninput', e=>{ settings.commerce.deliveryFee=+e.target.value||0; live(); renderCart(); });
+    on('cFree','oninput', e=>{ settings.commerce.freeAbove=+e.target.value||0; live(); renderCart(); });
+    on('cTax','oninput', e=>{ settings.commerce.taxPct=+e.target.value||0; live(); renderCart(); });
     $$('[data-cm]').forEach(x=>x.onchange=()=>{ settings.commerce[x.dataset.cm]=x.checked; live(); });
   }
   if(tab==='data'){
-    $('#dExp').onclick = exportData; $('#dImp').onclick = ()=>$('#importFile').click();
-    $('#dSeed').onclick = ()=>{ seedSampleOrders(); toast('Sample orders added','📦'); };
-    $('#dReset').onclick = resetAll;
+    on('dExp','onclick', exportData);
+    on('dImp','onclick', ()=>{ const f=$('#importFile'); if(f) f.click(); });
+    on('dSeed','onclick', ()=>{ seedSampleOrders(); toast('Sample orders added','📦'); });
+    on('dReset','onclick', resetAll);
   }
 }
 function exportData(){
-  const data = { settings, extraProducts, deletedIds, editedProducts, exportedAt:new Date().toISOString() };
+  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, exportedAt:new Date().toISOString() };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download = 'anywhere-anything-backup.json'; a.click();
@@ -1058,9 +1327,11 @@ function resetAll(){
 /* ---------- Product Manager (add/edit + real images) ---------- */
 function openPM(id){
   const p = id ? getP(id) : { n:'',v:'food',c:'Pizza',p:199,m:299,r:4.5,rc:10,e:'📦',g:'g1',d:'',s:'My Store',u:'1 pc',t:'2 days',veg:true,badge:'',img:'' };
+  if(!p) return;
   const grads = ['g1','g2','g3','g4','g5','g6','g7','g8'];
   let g = p.g, imgVal = p.img || '';
-  $('#pmBox').innerHTML = `<div class="modal-head"><h3>${id?'✏️ Edit product':'＋ Add product'}</h3>
+  const box = $('#pmBox'); if(!box) return;
+  box.innerHTML = `<div class="modal-head"><h3>${id?'✏️ Edit product':'＋ Add product'}</h3>
     <button class="icon-btn" onclick="document.getElementById('pmModal').classList.remove('show')">✕</button></div>
   <div class="modal-body">
     <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:6px">
@@ -1090,31 +1361,37 @@ function openPM(id){
     <button class="btn primary full" id="pmSave" style="margin-top:14px">${id?'Save changes':'Add to store'}</button>
   </div>`;
   openModal('pmModal');
-  const refreshPrev = ()=>{ $('#pmPrev').className = `pm-img-prev ${g}`; $('#pmPrev').innerHTML = mediaHTML({ e:$('#pmE').value||'📦', img:imgVal }); };
-  const fillCats = ()=>{ const vv = $('#pmV').value; $('#pmC').innerHTML = (CATEGORIES[vv]||['General']).map(c=>`<option ${c===p.c?'selected':''}>${c}</option>`).join(''); };
-  fillCats(); $('#pmV').onchange = fillCats;
+  const refreshPrev = ()=>{ const pv=$('#pmPrev'); if(pv){ pv.className = `pm-img-prev ${g}`; pv.innerHTML = mediaHTML({ e:($('#pmE')||{value:'📦'}).value||'📦', img:imgVal }); } };
+  const fillCats = ()=>{ const vv = ($('#pmV')||{value:'food'}).value; const sc=$('#pmC'); if(sc) sc.innerHTML = (CATEGORIES[vv]||['General']).map(c=>`<option ${c===p.c?'selected':''}>${c}</option>`).join(''); };
+  fillCats();
+  const pmv = $('#pmV'); if(pmv) pmv.onchange = fillCats;
   $$('#pmBox [data-g]').forEach(s=>s.onclick=()=>{ g=s.dataset.g; $$('#pmBox [data-g]').forEach(x=>x.classList.remove('active')); s.classList.add('active'); refreshPrev(); });
-  $('#pmE').oninput = refreshPrev;
-  $('#pmImg').oninput = e=>{ imgVal = e.target.value.trim(); refreshPrev(); };
-  $('#pmImgRm').onclick = ()=>{ imgVal=''; $('#pmImg').value=''; $('#pmFile').value=''; refreshPrev(); };
-  $('#pmFile').onchange = async e=>{
+  const pme = $('#pmE'); if(pme) pme.oninput = refreshPrev;
+  const pmi = $('#pmImg'); if(pmi) pmi.oninput = e=>{ imgVal = e.target.value.trim(); refreshPrev(); };
+  const pmr = $('#pmImgRm'); if(pmr) pmr.onclick = ()=>{ imgVal=''; const a=$('#pmImg'),b=$('#pmFile'); if(a)a.value=''; if(b)b.value=''; refreshPrev(); };
+  const pmf = $('#pmFile');
+  if(pmf) pmf.onchange = async e=>{
     const f = e.target.files[0]; if(!f) return;
     try{
       imgVal = await fileToDataURL(f, 800, .82);
       if(imgVal.length > 1400000) toast('Large photo — saved, but keep uploads small','⚠️');
-      $('#pmImg').value=''; refreshPrev(); toast('Photo added 📸','🖼️');
+      const a=$('#pmImg'); if(a) a.value=''; refreshPrev(); toast('Photo added 📸','🖼️');
     }catch{ toast('Could not read that image','⚠️'); }
   };
-  $('#pmSave').onclick = ()=>{
-    const obj = { id:id||uid('c'), n:$('#pmN').value.trim()||'Untitled', v:$('#pmV').value, c:$('#pmC').value,
-      p:+$('#pmP').value||0, m:+$('#pmM').value||0, r:p.r||4.5, rc:p.rc||10, e:$('#pmE').value||'📦', g,
-      d:$('#pmD').value, s:$('#pmS').value, u:$('#pmU').value, t:$('#pmT').value, badge:$('#pmB').value, veg:$('#pmVeg').checked, img:imgVal };
+  const pms = $('#pmSave');
+  if(pms) pms.onclick = ()=>{
+    const gv = sel => { const el=$(sel); return el?el.value:''; };
+    const obj = { id:id||uid('c'), n:gv('#pmN').trim()||'Untitled', v:gv('#pmV'), c:gv('#pmC'),
+      p:+gv('#pmP')||0, m:+gv('#pmM')||0, r:p.r||4.5, rc:p.rc||10, e:gv('#pmE')||'📦', g,
+      d:gv('#pmD'), s:gv('#pmS'), u:gv('#pmU'), t:gv('#pmT'), badge:gv('#pmB'),
+      veg:($('#pmVeg')||{}).checked||false, img:imgVal };
     if(id){ const ix = extraProducts.findIndex(x=>x.id===id);
       if(ix>-1) extraProducts[ix]=obj; else editedProducts[id]=obj;
     } else extraProducts.push(obj);
     const ok1 = LS.set('aw_products_extra_v1',extraProducts), ok2 = LS.set('aw_products_edited_v1',editedProducts);
     if(!ok1 || !ok2) toast('Storage full — photo too large, try a smaller image','⚠️');
-    $('#pmModal').classList.remove('show'); renderCustomizer('products'); renderPage();
+    const pm2=$('#pmModal'); if(pm2) pm2.classList.remove('show');
+    renderCustomizer('products'); renderPage();
     toast(id?'Product updated':'Product added to store','📦');
   };
 }
@@ -1123,38 +1400,43 @@ function openPM(id){
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', ()=>{
-  renderAll(); renderCart(); renderWish(); renderCities();
+  try{ renderAll(); }catch(err){ console.error(err); }
+  renderCart(); renderWish(); renderCities();
   bindDrawerClose();
-  $('#overlay').onclick = closeAll;
-  $('#btnCart').onclick = ()=>{ renderCart(); openDrawer('cartDrawer'); };
-  $('#btnWishlist').onclick = ()=>{ renderWish(); openDrawer('wishDrawer'); };
-  $('#btnCustomize').onclick = ()=>{ openDrawer('customDrawer'); renderCustomizer('store'); };
-  $('#btnCustomize2').onclick = ()=>{ openDrawer('customDrawer'); renderCustomizer('store'); };
-  $('#btnMenu').onclick = ()=>{ $('#sideMenu').classList.add('show'); $('#overlay').classList.add('show'); };
-  $('#btnCloseMenu').onclick = closeAll;
-  $('#btnUser').onclick = ()=>openAuth('login');
-  $('#btnLogin2').onclick = ()=>{ closeAll(); openAuth('login'); };
-  $('#btnOffers').onclick = ()=>{ route.page='offers'; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); };
-  $('#btnLang').onclick = ()=>{
+  const on = (id, fn) => { const el = document.getElementById(id); if(el) el.onclick = fn; };
+  on('overlay', closeAll);
+  on('btnCart', ()=>{ renderCart(); openDrawer('cartDrawer'); });
+  on('btnWishlist', ()=>{ renderWish(); openDrawer('wishDrawer'); });
+  on('btnBell', ()=>{ notifs.forEach(n=>n.read=true); saveNotifs(); updateBadges(); renderNotifs(); openDrawer('notifDrawer'); });
+  on('btnCustomize', ()=>{ openDrawer('customDrawer'); renderCustomizer('store'); });
+  on('btnCustomize2', ()=>{ openDrawer('customDrawer'); renderCustomizer('store'); });
+  on('btnMenu', ()=>{ const sm=$('#sideMenu'),ov=$('#overlay'); if(sm) sm.classList.add('show'); if(ov) ov.classList.add('show'); });
+  on('btnCloseMenu', closeAll);
+  on('btnUser', ()=>openAuth('login'));
+  on('btnLogin2', ()=>{ closeAll(); openAuth('login'); });
+  on('btnOffers', ()=>{ route.page='offers'; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); });
+  on('btnLang', ()=>{
     settings.lang = HI() ? 'en' : 'hi'; saveSettings(); renderAll();
     toast(HI()?'भाषा: हिंदी 🌐':'Language: English 🌐','🌐');
-  };
-  $('#logoHome').onclick = e=>{ e.preventDefault(); route={page:'home',vertical:'all',category:'all',query:'',sort:'pop'}; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); };
-  $('#btnLocation').onclick = ()=>{ renderCities(); openModal('locationModal'); };
-  $('#btnLocation2').onclick = ()=>{ closeAll(); renderCities(); openModal('locationModal'); };
-  $('#locSearch').oninput = e=>renderCities(e.target.value);
-  $('#btnDetect').onclick = ()=>{ const c = CITIES[Math.floor(Math.random()*CITIES.length)]; location=c; LS.set('aw_loc_v1',c); renderNav(); $('#locationModal').classList.remove('show'); renderPage(); toast(`Location detected: ${c.n} 🎯`,'🎯'); };
-  $('#btnTheme').onclick = ()=>{
+  });
+  on('logoHome', e=>{ e.preventDefault(); route={page:'home',vertical:'all',category:'all',query:'',sort:'pop'}; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); });
+  on('btnLocation', ()=>{ renderCities(); openModal('locationModal'); });
+  on('btnLocation2', ()=>{ closeAll(); renderCities(); openModal('locationModal'); });
+  const locS = $('#locSearch'); if(locS) locS.oninput = e=>renderCities(e.target.value);
+  on('btnDetect', ()=>{ const c = CITIES[Math.floor(Math.random()*CITIES.length)]; location=c; LS.set('aw_loc_v1',c); renderNav(); const lm=$('#locationModal'); if(lm) lm.classList.remove('show'); renderPage(); toast(`Location detected: ${c.n} 🎯`,'🎯'); });
+  on('btnTheme', ()=>{
     const cur = document.documentElement.dataset.theme;
     settings.theme.mode = cur==='dark'?'light':'dark'; saveSettings(); applySettings();
-  };
+  });
   const goDesk = bindSearch($('#searchInput'));
-  $('#btnSearch').onclick = ()=>{ const q=$('#searchInput').value.trim(); if(q) goDesk(q); };
-  $('#searchInputM').addEventListener('keydown', e=>{ if(e.key==='Enter'&&e.target.value.trim()) goDesk(e.target.value.trim()); });
-  $('#btnExport').onclick = exportData;
-  $('#btnImport').onclick = ()=>$('#importFile').click();
-  $('#btnResetCustom').onclick = resetAll;
-  $('#importFile').onchange = e=>{
+  on('btnSearch', ()=>{ const si=$('#searchInput'); const q=si?si.value.trim():''; if(q) goDesk(q); });
+  const sim = $('#searchInputM');
+  if(sim) sim.addEventListener('keydown', e=>{ if(e.key==='Enter'&&e.target.value.trim()) goDesk(e.target.value.trim()); });
+  on('btnExport', exportData);
+  on('btnImport', ()=>{ const f=$('#importFile'); if(f) f.click(); });
+  on('btnResetCustom', resetAll);
+  const imp = $('#importFile');
+  if(imp) imp.onchange = e=>{
     const f = e.target.files[0]; if(!f) return;
     const rd = new FileReader();
     rd.onload = ()=>{ try{
@@ -1163,10 +1445,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(d.extraProducts){ extraProducts=d.extraProducts; LS.set('aw_products_extra_v1',extraProducts); }
       if(d.deletedIds){ deletedIds=d.deletedIds; LS.set('aw_products_deleted_v1',deletedIds); }
       if(d.editedProducts){ editedProducts=d.editedProducts; LS.set('aw_products_edited_v1',editedProducts); }
+      if(d.addrs){ addrs=d.addrs; saveAddrs(); }
       renderAll(); renderCustomizer('store'); toast('Backup restored!','💾');
     }catch{ toast('Invalid backup file','⚠️'); } };
     rd.readAsText(f); e.target.value='';
   };
   $$('.modal-wrap').forEach(m=>m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('show'); }));
   setTimeout(()=>toast(`Welcome to ${settings.storeName} ${settings.storeName2}! 🎉`,'👋'), 600);
+  if(!LS.get('aw_welcomed_v1', null)){
+    setTimeout(()=>{
+      notify(HI()?'नमस्ते! 👋':'Welcome! 👋', HI()?'ऑर्डर अपडेट यहां मिलेंगे। पुश अलर्ट चालू करें।':'Order updates will land here. Turn on push alerts for live pings.', '👋');
+      LS.set('aw_welcomed_v1', 1);
+    }, 2500);
+  }
 });

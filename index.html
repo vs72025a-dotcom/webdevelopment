@@ -36,7 +36,9 @@
     </div>
     <div class="header-actions">
       <button class="icon-btn theme-btn" id="btnTheme" title="Toggle theme">🌙</button>
+      <button class="icon-btn" id="btnLang" title="Language / भाषा" style="width:auto;padding:0 12px;font-size:13px;font-weight:800">EN</button>
       <button class="icon-btn" id="btnOffers" title="Offers">🏷️<span class="dot-badge"></span></button>
+      <button class="icon-btn" id="btnBell" title="Notifications">🔔<span class="count-badge hidden" id="bellCount">0</span></button>
       <button class="icon-btn" id="btnWishlist" title="Wishlist">❤️<span class="count-badge hidden" id="wishCount">0</span></button>
       <button class="icon-btn" id="btnUser" title="Account">👤</button>
       <button class="cart-btn" id="btnCart">🛒 <span>Cart</span> <b class="count-badge" id="cartCount">0</b></button>
@@ -88,8 +90,14 @@
 
 <!-- ============ WISHLIST DRAWER ============ -->
 <div class="drawer" id="wishDrawer">
-  <div class="drawer-head"><h3>❤️ Wishlist</h3><button class="icon-btn" data-close="wishDrawer">✕</button></div>
+  <div class="drawer-head"><h3 id="wishTitle">❤️ Wishlist</h3><button class="icon-btn" data-close="wishDrawer">✕</button></div>
   <div class="drawer-body" id="wishItems"></div>
+</div>
+
+<!-- ============ NOTIFICATION DRAWER ============ -->
+<div class="drawer" id="notifDrawer">
+  <div class="drawer-head"><h3 id="notifTitle">🔔 Notifications</h3><button class="icon-btn" data-close="notifDrawer">✕</button></div>
+  <div class="drawer-body" id="notifBody"></div>
 </div>
 
 <!-- ============ CUSTOMIZER DRAWER ============ -->
@@ -111,11 +119,11 @@
 <!-- ============ LOCATION MODAL ============ -->
 <div class="modal-wrap" id="locationModal">
   <div class="modal">
-    <div class="modal-head"><h3>📍 Choose delivery location</h3><button class="icon-btn" data-close-modal="locationModal">✕</button></div>
+    <div class="modal-head"><h3 id="locTitle">📍 Choose delivery location</h3><button class="icon-btn" data-close-modal="locationModal">✕</button></div>
     <div class="modal-body">
-      <div class="field"><label>Search city or pincode</label><input id="locSearch" placeholder="e.g. Mumbai, 400001…" /></div>
+      <div class="field"><label id="locSearchLabel">Search city or pincode</label><input id="locSearch" placeholder="e.g. Mumbai, 400001…" /></div>
       <div class="detect-row"><button class="btn secondary full" id="btnDetect">🎯 Use my current location</button></div>
-      <h4 class="mt">Popular cities</h4>
+      <h4 class="mt" id="locPop">Popular cities</h4>
       <div class="city-grid" id="cityGrid"></div>
     </div>
   </div>
@@ -124,11 +132,11 @@
 <!-- ============ AUTH MODAL ============ -->
 <div class="modal-wrap" id="authModal">
   <div class="modal small">
-    <div class="modal-head"><h3>👋 Welcome</h3><button class="icon-btn" data-close-modal="authModal">✕</button></div>
+    <div class="modal-head"><h3 id="authTitle">👋 Welcome</h3><button class="icon-btn" data-close-modal="authModal">✕</button></div>
     <div class="modal-body">
       <div class="auth-tabs"><button class="active" id="tabLogin">Login</button><button id="tabSignup">Sign up</button></div>
       <div id="authForm"></div>
-      <p class="muted small center">Demo auth — stored only in your browser.</p>
+      <p class="muted small center" id="authNote">Demo auth — stored only in your browser.</p>
     </div>
   </div>
 </div>
@@ -138,6 +146,9 @@
 
 <!-- ============ TRACK MODAL ============ -->
 <div class="modal-wrap" id="trackModal"><div class="modal" id="trackBox"></div></div>
+
+<!-- ============ RETURN MODAL ============ -->
+<div class="modal-wrap" id="returnModal"><div class="modal small" id="returnBox"></div></div>
 
 <!-- ============ PRODUCT MANAGER MODAL ============ -->
 <div class="modal-wrap" id="pmModal"><div class="modal large" id="pmBox"></div></div>

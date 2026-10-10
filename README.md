@@ -26,6 +26,14 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **⚡ UPI payments** — GPay/PhonePe/Paytm/BHIM picker, UPI-ID verification, scan-and-pay QR, approval simulation at checkout
 
+**🔔 Notifications + push** — bell center for order/return updates + optional browser push alerts (Notification API)
+
+**📍 Address book** — save Home/Work/Other addresses in your account, one-tap select at checkout
+
+**↩ Returns & refunds** — reason picker on delivered orders, 4-stage refund tracking (Requested → Approved → Picked up → Refunded) back to the payment method
+
+**🗺️ Live rider map** — animated tracker map in every order: moving rider, store→home route, ETA chip, rider card
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs
