@@ -2,14 +2,14 @@
    AnyWhere Anything — Seed Data
    ============================================================ */
 const VERTICALS = [
-  { id:'food',        name:'Food',        emoji:'🍔', grad:'g1', tag:'30-min delivery' },
-  { id:'grocery',     name:'Grocery',     emoji:'🥦', grad:'g2', tag:'Farm fresh' },
-  { id:'fashion',     name:'Fashion',     emoji:'👗', grad:'g4', tag:'Top brands' },
-  { id:'electronics', name:'Electronics', emoji:'🎧', grad:'g3', tag:'Genuine + warranty' },
-  { id:'pharmacy',    name:'Pharmacy',    emoji:'💊', grad:'g7', tag:'100% genuine' },
-  { id:'home',        name:'Home & Kitchen', emoji:'🏠', grad:'g6', tag:'Everything home' },
-  { id:'beauty',      name:'Beauty',      emoji:'💄', grad:'g8', tag:'Glow up' },
-  { id:'services',    name:'Services',    emoji:'🧹', grad:'g5', tag:'At your doorstep' },
+  { id:'food',        name:'Food',        hn:'खाना',          emoji:'🍔', grad:'g1', tag:'30-min delivery' },
+  { id:'grocery',     name:'Grocery',     hn:'किराना',         emoji:'🥦', grad:'g2', tag:'Farm fresh' },
+  { id:'fashion',     name:'Fashion',     hn:'फैशन',          emoji:'👗', grad:'g4', tag:'Top brands' },
+  { id:'electronics', name:'Electronics', hn:'इलेक्ट्रॉनिक्स', emoji:'🎧', grad:'g3', tag:'Genuine + warranty' },
+  { id:'pharmacy',    name:'Pharmacy',    hn:'फार्मेसी',        emoji:'💊', grad:'g7', tag:'100% genuine' },
+  { id:'home',        name:'Home & Kitchen', hn:'घर',          emoji:'🏠', grad:'g6', tag:'Everything home' },
+  { id:'beauty',      name:'Beauty',      hn:'ब्यूटी',         emoji:'💄', grad:'g8', tag:'Glow up' },
+  { id:'services',    name:'Services',    hn:'सेवाएं',         emoji:'🧹', grad:'g5', tag:'At your doorstep' },
 ];
 
 const CATEGORIES = {
@@ -162,7 +162,8 @@ const FONT_OPTIONS = [
 ];
 
 const DEFAULT_SETTINGS = {
-  storeName:'AnyWhere', storeName2:'Anything', tagline:'Food • Grocery • Shopping • More', logoEmoji:'🌍',
+  lang:'en',
+  storeName:'AnyWhere', storeName2:'Anything', tagline:'Food • Grocery • Shopping • More', logoEmoji:'🌍', logoImg:'',
   announce:'🎉 Grand Sale — up to 60% OFF + extra 20% with code WELCOME20', showAnnounce:true,
   heroBadge:'⚡ Delivery in 30 mins — Anywhere', heroTitle:'Anything you crave, delivered Anywhere.', heroSub:'Food, groceries, fashion, electronics, medicines & home services — one cart, one checkout, one super-app.',
   heroCta1:'Order Food Now', heroCta2:'Explore Everything',
@@ -170,3 +171,70 @@ const DEFAULT_SETTINGS = {
   theme:{ mode:'light', primary:'#e8433f', secondary:'#8b1e3f', font:"'Plus Jakarta Sans','Inter',system-ui,sans-serif", radius:16, cardStyle:'modern' },
   commerce:{ currency:'₹', deliveryFee:29, freeAbove:499, taxPct:5, showRatings:true, showVeg:true, showMrp:true, showTime:true },
 };
+const UPI_APPS = [
+  { id:'GPay', short:'G', color:'#1a73e8' },
+  { id:'PhonePe', short:'Pe', color:'#5f259f' },
+  { id:'Paytm', short:'Pt', color:'#00b9f1' },
+  { id:'BHIM', short:'BH', color:'#ed752e' },
+];
+
+/* ---------------- English / Hindi UI strings ---------------- */
+const I18N = {
+en:{
+  searchPh:'Search "pizza", "milk", "headphones"…', searchPhM:'Search anything…', search:'Search', cart:'Cart', deliverTo:'Deliver to', all:'All',
+  sideHome:'Home', sideExplore:'Explore All', sideOffers:'Offers & Coupons', sideOrders:'My Orders', sideWish:'Wishlist', sideCustom:'Customize Store', sideSeller:'Seller Central', sideLogin:'Login / Sign up',
+  bHome:'Home', bExplore:'Explore', bOffers:'Offers', bOrders:'Orders', bCart:'Cart',
+  statCustomers:'Happy customers', statCities:'Cities served', statRating:'Average rating',
+  secCat:'Shop by category', secCatSub:'Every vertical, one cart — jump right in', secFlash:'Flash Deals — ends in', secBest:'Bestsellers near you', secBestSub:'Most loved this week in',
+  secCur:'Curated collections', secCurSub:'Handpicked shelves for every mood', secFood:'Order food in a tap', secFoodSub:'Top rated restaurants near',
+  secSvc:'Home services', secSvcSub:'Verified pros at your doorstep', secTrend:'Trending in electronics', secTrendSub:'Genuine products with warranty',
+  secRecent:'Recently viewed', secAny:'We deliver Anywhere', secAnySub:'500+ cities and counting', secLoved:'Loved by millions', secLovedSub:'4.8 average across 2M+ reviews', viewAll:'View all →',
+  addBtn:'ADD +',
+  shopExplore:'Explore everything', shopResults:'Results for', shopDelivering:'delivering to', shopItems:'items', fFilters:'Filters', fResults:'results', fCategory:'Category', fMaxPrice:'Max price', fRating:'Rating', fAny:'Any rating', fAbove:'& above', fVeg:'Veg only', fClear:'Clear all filters',
+  sortPop:'Sort: Popularity', sortPlh:'Price: Low → High', sortPhl:'Price: High → Low', sortRate:'Rating', sortOff:'Discount', itemsFound:'items found', noMatch:'No matches found', noMatchSub:'Try a different search or clear filters.',
+  offTitle:'Offers & Coupons', offSub:'Stack savings — apply at checkout', copyBtn:'Copy', applyBtn:'Apply', appliedBtn:'Applied ✓',
+  ordTitle:'My Orders', ordEmpty:'No orders yet', ordEmptySub:'Your delicious journey starts with the first cart.', ordStart:'Start shopping', ordItems:'items', ordTrack:'Track order', ordReorder:'Reorder',
+  st0:'Placed', st1:'Preparing', st2:'Shipped', st3:'Out for delivery', st4:'Delivered',
+  cartTitle:'Your Cart', wishTitle:'Wishlist', cartEmpty:'Cart is empty', cartEmptySub:'Add something delicious.', cartBrowse:'Browse products', couponPh:'Coupon code', apply:'Apply', remove:'Remove',
+  couponLbl:'Coupon', subtotal:'Subtotal', delivery:'Delivery', free:'FREE', freeWon:"You've unlocked FREE delivery!", addMore:'more for FREE delivery', tax:'Tax', saveMrp:'You save on MRP', total:'Total', checkoutBtn:'Proceed to checkout →',
+  pDeliverTo:'Deliver to', pReviews:'Ratings & reviews', pWriteReview:'Write a review…', pPost:'Post', pAddCart:'Add to cart',
+  coAddr:'Address', coPay:'Payment', coDone:'Done', coName:'Full name', coPhone:'Phone', coAddrLbl:'Address', coCity:'City', coPin:'Pincode', coContinue:'Continue to payment →', coPayable:'Payable', coBack:'← Back', coPlace:'Place order', coPlacing:'Placing order…',
+  coTotal:'Total', coItems:'Items', coDelTax:'Delivery + Tax', coCoupon:'Coupon', coSuccess:'Order placed!', coTrack:'Track order', coShop:'Continue shopping',
+  payUpi:'UPI — instant & free', payCard:'Credit / Debit card', payCod:'Cash on delivery', payWallet:'Wallet',
+  upiTitle:'Pay with UPI', upiIdPh:'yourname@upi', upiVerify:'Verify', upiVerifying:'Verifying…', upiInvalid:'Enter a valid UPI ID (e.g. name@okhdfc)', upiScan:'Scan & pay', upiScanSub:'Use any UPI app to scan', upiNote:'Approve the collect request in your UPI app', upiWait:'Waiting for approval in',
+  selTitle:'Seller Central', selSub:'Your business, one dashboard', selRevenue:'Total revenue', selOrders:'Orders', selProducts:'Live products', selRating:'Avg rating',
+  selChart:'Sales — last 7 days', selChartSub:'Live from your orders', selRecent:'Recent orders', selAdvance:'Advance', selTop:'Top products', selAdd:'Add product', selEdit:'Edit',
+  selPayout:'Payouts', selAvail:'Available balance', selNext:'Next payout', selEmpty:'No sales yet — add sample orders to preview your dashboard.', selSeed:'Add sample orders', selView:'View store',
+  locTitle:'Choose delivery location', locSearchPh:'Search city or pincode', locDetect:'Use my current location', locPop:'Popular cities', locHint:'e.g. Mumbai, 400001…',
+  auWelcome:'Welcome', auLogin:'Login', auSignup:'Sign up', auName:'Name', auEmail:'Email', auPhone:'Phone', auLoginBtn:'Login', auCreateBtn:'Create account', auDemo:'Demo auth — stored only in your browser.', auHi:'Hi', auLogout:'Logout',
+  ftShop:'Shop', ftCompany:'Company', ftHelp:'Help', ftAbout:'About us', ftCareers:'Careers', ftPartner:'Become a partner', ftGift:'Gift cards', ftBlog:'Blog', ftHelpC:'Help center', ftTrack:'Track order', ftReturns:'Returns', ftTerms:'Terms & privacy', ftCustom:'Customize store', ftSeller:'Seller Central',
+},
+hi:{
+  searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
+  sideHome:'होम', sideExplore:'सब कुछ देखें', sideOffers:'ऑफर और कूपन', sideOrders:'मेरे ऑर्डर', sideWish:'विशलिस्ट', sideCustom:'स्टोर कस्टमाइज़ करें', sideSeller:'सेलर सेंट्रल', sideLogin:'लॉगिन / साइन अप',
+  bHome:'होम', bExplore:'देखें', bOffers:'ऑफर', bOrders:'ऑर्डर', bCart:'कार्ट',
+  statCustomers:'खुश ग्राहक', statCities:'शहरों में सेवा', statRating:'औसत रेटिंग',
+  secCat:'कैटेगरी से खरीदें', secCatSub:'हर कैटेगरी, एक कार्ट — शुरू करें', secFlash:'फ्लैश डील — समाप्त होने में', secBest:'आपके पास बेस्टसेलर', secBestSub:'इस सप्ताह सबसे पसंदीदा',
+  secCur:'चुने हुए कलेक्शन', secCurSub:'हर मूड के लिए खास', secFood:'एक टैप में खाना', secFoodSub:'टॉप रेटेड रेस्टोरेंट',
+  secSvc:'होम सर्विसेज', secSvcSub:'घर पर वेरिफाइड एक्सपर्ट', secTrend:'इलेक्ट्रॉनिक्स में ट्रेंडिंग', secTrendSub:'वारंटी के साथ असली प्रोडक्ट',
+  secRecent:'हाल में देखे', secAny:'हम हर जगह डिलीवर करते हैं', secAnySub:'500+ शहर और बढ़ रहे हैं', secLoved:'लाखों का भरोसा', secLovedSub:'2M+ रिव्यू में 4.8 औसत', viewAll:'सभी देखें →',
+  addBtn:'जोड़ें +',
+  shopExplore:'सब कुछ देखें', shopResults:'के लिए परिणाम', shopDelivering:'डिलीवरी', shopItems:'आइटम', fFilters:'फ़िल्टर', fResults:'परिणाम', fCategory:'कैटेगरी', fMaxPrice:'अधिकतम कीमत', fRating:'रेटिंग', fAny:'कोई भी रेटिंग', fAbove:'और ऊपर', fVeg:'सिर्फ वेज', fClear:'सभी फ़िल्टर हटाएं',
+  sortPop:'क्रम: लोकप्रियता', sortPlh:'कीमत: कम → ज़्यादा', sortPhl:'कीमत: ज़्यादा → कम', sortRate:'रेटिंग', sortOff:'छूट', itemsFound:'आइटम मिले', noMatch:'कोई परिणाम नहीं', noMatchSub:'कुछ और खोजें या फ़िल्टर हटाएं।',
+  offTitle:'ऑफर और कूपन', offSub:'बचत पक्की — चेकआउट पर लगाएं', copyBtn:'कॉपी', applyBtn:'लगाएं', appliedBtn:'लागू ✓',
+  ordTitle:'मेरे ऑर्डर', ordEmpty:'अभी कोई ऑर्डर नहीं', ordEmptySub:'पहली कार्ट से स्वादिष्ट सफर शुरू करें।', ordStart:'खरीदारी शुरू करें', ordItems:'आइटम', ordTrack:'ऑर्डर ट्रैक करें', ordReorder:'फिर से मंगाएं',
+  st0:'ऑर्डर मिला', st1:'तैयार हो रहा', st2:'भेज दिया', st3:'रास्ते में', st4:'डिलीवर',
+  cartTitle:'आपकी कार्ट', wishTitle:'विशलिस्ट', cartEmpty:'कार्ट खाली है', cartEmptySub:'कुछ स्वादिष्ट जोड़ें।', cartBrowse:'प्रोडक्ट देखें', couponPh:'कूपन कोड', apply:'लगाएं', remove:'हटाएं',
+  couponLbl:'कूपन', subtotal:'सबटोटल', delivery:'डिलीवरी', free:'मुफ़्त', freeWon:'मुफ़्त डिलीवरी पा ली!', addMore:'मुफ़्त डिलीवरी के लिए और जोड़ें', tax:'टैक्स', saveMrp:'MRP पर बचत', total:'कुल', checkoutBtn:'चेकआउट करें →',
+  pDeliverTo:'डिलीवरी', pReviews:'रेटिंग और रिव्यू', pWriteReview:'रिव्यू लिखें…', pPost:'पोस्ट', pAddCart:'कार्ट में जोड़ें',
+  coAddr:'पता', coPay:'भुगतान', coDone:'हो गया', coName:'पूरा नाम', coPhone:'फ़ोन', coAddrLbl:'पता', coCity:'शहर', coPin:'पिनकोड', coContinue:'भुगतान पर आगे बढ़ें →', coPayable:'देय राशि', coBack:'← पीछे', coPlace:'ऑर्डर करें', coPlacing:'ऑर्डर हो रहा…',
+  coTotal:'कुल', coItems:'आइटम', coDelTax:'डिलीवरी + टैक्स', coCoupon:'कूपन', coSuccess:'ऑर्डर हो गया!', coTrack:'ऑर्डर ट्रैक करें', coShop:'और खरीदें',
+  payUpi:'UPI — तुरंत व मुफ़्त', payCard:'क्रेडिट / डेबिट कार्ड', payCod:'कैश ऑन डिलीवरी', payWallet:'वॉलेट',
+  upiTitle:'UPI से भुगतान', upiIdPh:'yourname@upi', upiVerify:'वेरिफाई', upiVerifying:'जांच हो रही…', upiInvalid:'सही UPI ID डालें (जैसे name@okhdfc)', upiScan:'स्कैन करके भुगतान करें', upiScanSub:'कोई भी UPI ऐप इस्तेमाल करें', upiNote:'अपने UPI ऐप में पेमेंट अप्रूव करें', upiWait:'में अप्रूवल का इंतज़ार',
+  selTitle:'सेलर सेंट्रल', selSub:'आपका बिज़नेस, एक डैशबोर्ड', selRevenue:'कुल कमाई', selOrders:'ऑर्डर', selProducts:'लाइव प्रोडक्ट', selRating:'औसत रेटिंग',
+  selChart:'बिक्री — पिछले 7 दिन', selChartSub:'आपके ऑर्डर से लाइव', selRecent:'हाल के ऑर्डर', selAdvance:'आगे बढ़ाएं', selTop:'टॉप प्रोडक्ट', selAdd:'प्रोडक्ट जोड़ें', selEdit:'एडिट',
+  selPayout:'पेमेंट', selAvail:'उपलब्ध बैलेंस', selNext:'अगला पेमेंट', selEmpty:'अभी कोई बिक्री नहीं — सैंपल ऑर्डर जोड़कर डैशबोर्ड देखें।', selSeed:'सैंपल ऑर्डर जोड़ें', selView:'स्टोर देखें',
+  locTitle:'डिलीवरी लोकेशन चुनें', locSearchPh:'शहर या पिनकोड खोजें', locDetect:'मेरी करंट लोकेशन इस्तेमाल करें', locPop:'लोकप्रिय शहर', locHint:'जैसे Mumbai, 400001…',
+  auWelcome:'नमस्ते', auLogin:'लॉगिन', auSignup:'साइन अप', auName:'नाम', auEmail:'ईमेल', auPhone:'फ़ोन', auLoginBtn:'लॉगिन', auCreateBtn:'अकाउंट बनाएं', auDemo:'डेमो लॉगिन — सिर्फ आपके ब्राउज़र में सेव।', auHi:'नमस्ते', auLogout:'लॉगआउट',
+  ftShop:'खरीदें', ftCompany:'कंपनी', ftHelp:'मदद', ftAbout:'हमारे बारे में', ftCareers:'करियर', ftPartner:'पार्टनर बनें', ftGift:'गिफ्ट कार्ड', ftBlog:'ब्लॉग', ftHelpC:'हेल्प सेंटर', ftTrack:'ऑर्डर ट्रैक करें', ftReturns:'रिटर्न', ftTerms:'नियम व प्राइवेसी', ftCustom:'स्टोर कस्टमाइज़ करें', ftSeller:'सेलर सेंट्रल',
+}};

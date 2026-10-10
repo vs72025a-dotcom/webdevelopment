@@ -419,4 +419,64 @@ html[data-theme="dark"] .toast{background:#fff;color:#111}
   .city-strip{grid-template-columns:repeat(3,1fr)}
   .addr-grid{grid-template-columns:1fr}
   .sec-head h2{font-size:18px}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .seller-grid{grid-template-columns:1fr}
+  .upi-qr{flex-direction:column;text-align:center}
 }
+
+/* ============================================================
+   Real product images / uploads
+   ============================================================ */
+.card-img img.pimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ce,.se,.pe,.re{position:relative;overflow:hidden}
+.ce img.pimg,.se img.pimg,.pe img.pimg,.re img.pimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pm-img{overflow:hidden;position:relative}
+.pm-img img.pimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.logo-mark img{width:40px;height:40px;border-radius:12px;object-fit:cover;display:block}
+.pm-img-prev{width:96px;height:96px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative;overflow:hidden;flex-shrink:0}
+.pm-img-prev img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.file-row{display:flex;gap:8px;align-items:center}
+.file-row input[type=file]{flex:1;font-size:12px;color:var(--muted)}
+.img-or{text-align:center;font-size:11px;color:var(--muted);font-weight:800;margin:6px 0}
+
+/* ============================================================
+   UPI payments
+   ============================================================ */
+.upi-box{background:var(--surface-2);border:1.5px solid var(--primary);border-radius:14px;padding:16px;margin:4px 0 14px}
+.upi-box h4{margin:0 0 12px;font-size:14px}
+.upi-apps{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.upi-app{flex:1;min-width:68px;border:1.5px solid var(--border);background:var(--surface);border-radius:11px;padding:9px 4px;font-size:11.5px;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--text);transition:.15s}
+.upi-app .ua{width:30px;height:30px;border-radius:99px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.upi-app.sel{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 16%,transparent)}
+.upi-row{display:flex;gap:8px}
+.upi-row input{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600;outline:none;min-width:0}
+.upi-row input:focus{border-color:var(--primary)}
+.upi-msg{font-size:12px;font-weight:700;margin-top:7px;display:block;min-height:16px}
+.upi-msg.ok{color:var(--success)} .upi-msg.err{color:var(--danger)}
+.upi-qr{display:flex;gap:14px;align-items:center;margin-top:10px;background:var(--surface);border-radius:12px;padding:12px}
+.upi-qr canvas{border-radius:8px;border:1px solid var(--border);flex-shrink:0;background:#fff}
+.upi-qr b{font-size:15px;display:block}.upi-qr small{color:var(--muted);font-size:12px}
+.upi-note{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:600}
+
+/* ============================================================
+   Seller Central dashboard
+   ============================================================ */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden}
+.stat::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(var(--primary),var(--primary-2))}
+.stat small{color:var(--muted);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}
+.stat b{font-size:25px;display:block;margin:6px 0 2px;letter-spacing:-.5px}
+.stat span{font-size:12px;color:var(--success);font-weight:700}
+.seller-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:14px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+.panel h3{margin:0 0 4px;font-size:15px}
+.panel .psub{margin:0 0 12px;font-size:12px;color:var(--muted)}
+.sord{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
+.sord:last-child{border-bottom:none}
+.sord .so{font-size:22px}
+.sord .si{flex:1;min-width:120px}.sord .si b{display:block;font-size:12.5px}.sord .si small{color:var(--muted)}
+.payout{background:linear-gradient(135deg,var(--primary),var(--primary-2));border:none;color:#fff}
+.payout h3,.payout .psub{color:#fff}.payout .psub{opacity:.85}
+.payout .pamt{font-size:30px;font-weight:800;margin:8px 0 2px}
+.seller-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.chart-tip{font-size:11.5px;color:var(--muted);text-align:center;margin-top:6px}

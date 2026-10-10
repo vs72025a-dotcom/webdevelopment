@@ -18,6 +18,14 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **📍 Anywhere delivery** — city/pincode picker, mock geo-detect, per-product ETAs
 
+**🖼️ Real product photos** — paste an image URL or upload from your device (auto-compressed, saved in-browser) per product + custom store logo
+
+**💼 Seller Central** — revenue/orders/ratings stats, 7-day sales chart, order manager, top-products inventory, payouts (side menu → Seller Central)
+
+**🌐 English + Hindi mode** — one-tap EN/हिं toggle in the header, full UI translation
+
+**⚡ UPI payments** — GPay/PhonePe/Paytm/BHIM picker, UPI-ID verification, scan-and-pay QR, approval simulation at checkout
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs
