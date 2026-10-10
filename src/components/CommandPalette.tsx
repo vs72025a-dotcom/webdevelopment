@@ -61,14 +61,15 @@ export function CommandPalette(): JSX.Element | null {
   const close = useCallback(() => store.setPaletteOpen(false), [store]);
 
   const downloadConversation = useCallback(
-    (format: 'md' | 'json') => {
+    (format: 'md' | 'json' | 'html') => {
       const id = store.active?.id;
       if (!id) {
         store.toast('warn', 'No conversation open', 'Start one in Chat first.');
         return;
       }
       const text = store.exportConversation(id, format);
-      const blob = new Blob([text], { type: format === 'md' ? 'text/markdown' : 'application/json' });
+      const mime = format === 'md' ? 'text/markdown' : format === 'json' ? 'application/json' : 'text/html';
+      const blob = new Blob([text], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -177,6 +178,24 @@ export function CommandPalette(): JSX.Element | null {
         icon: 'download',
         keywords: 'save data',
         run: () => downloadConversation('json'),
+      },
+      {
+        id: 'export-html',
+        group: 'Actions',
+        title: 'Export conversation as HTML',
+        hint: 'Self-contained styled document',
+        icon: 'download',
+        keywords: 'save share html webpage standalone',
+        run: () => downloadConversation('html'),
+      },
+      {
+        id: 'print-chat',
+        group: 'Actions',
+        title: 'Print conversation / Save as PDF',
+        hint: 'Clean ink-friendly document layout (⌘P)',
+        icon: 'doc',
+        keywords: 'print pdf save paper export',
+        run: () => window.print(),
       },
       {
         id: 'copy-last',

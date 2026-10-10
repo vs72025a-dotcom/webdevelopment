@@ -9,7 +9,7 @@ optionally hand the wheel to a frontier model when you paste an API key.
 npm install
 npm run dev        # http://localhost:5173 — binds 0.0.0.0
 npm run build      # tsc -b && vite build
-npm test           # typecheck + the jsdom runtime smoke test (97 assertions)
+npm test           # typecheck + the jsdom runtime smoke test (99 assertions)
 ```
 
 ---
@@ -18,7 +18,7 @@ npm test           # typecheck + the jsdom runtime smoke test (97 assertions)
 
 | View | What it actually does |
 | --- | --- |
-| **Chat** | Streaming answers with an expandable reasoning trace, tool cards showing the exact call and its output, inline `[n]` citations that open the source passage, drag-and-drop file ingestion directly into the composer, conversation branching/forking from any message, direct one-click transfer of code blocks into Code Lab, per-message copy / read-aloud / regenerate / edit-and-rerun, and markdown with syntax-highlighted code. |
+| **Chat** | Streaming answers with an expandable reasoning trace, tool cards showing the exact call and its output, inline `[n]` citations that open the source passage, drag-and-drop file ingestion directly into the composer, conversation branching/forking from any message, direct one-click transfer of code blocks into Code Lab, multi-format export (Markdown, JSON, standalone styled HTML, ink-friendly print/PDF), per-message copy / read-aloud / regenerate / edit-and-rerun, and markdown with syntax-highlighted code. |
 | **Documents** | Drop text files or paste notes; they are chunked (760/120 overlap) and embedded into 1024-d vectors *in the tab*. A retrieval tester runs the same hybrid search the engine runs and shows semantic vs lexical scores per hit. Settings can import a library back in from an export or any JSON file of title/text pairs — sources are re-embedded locally. |
 | **Code Lab** | A gutter-numbered editor with a highlighter preview, deterministic static analysis from our own parser (structure, complexity, smells), and Explain / Review / Tests / Refactor through the engine. |
 | **Prompt Studio** | A structured prompt compiles into a spec (style, palette, density, chaos, glow, grain, scale, per-term TF-IDF weights, negative terms) that drives a seeded renderer — value-noise nebulae, marching-squares topography, flow fields, circuits. Same seed, same pixels. Export PNG or save to the gallery. |
@@ -154,7 +154,7 @@ reading the conversation back out of IndexedDB. It waits for the lazily-loaded c
 sleeping and hoping, then checks the extended pack is indexed and
 labelled as knowledge rather than as a user document, toggles it off and on through the real
 Settings switch, imports a library fixture and confirms it is retrievable, and verifies the shipped
-manifest and service worker, the AI Telemetry & Observability suite, and the live 50-query vector retrieval benchmark, and drag-and-drop file ingestion in the composer, conversation branching, and direct Code Lab code-block transfer, deep PWA shortcut navigation, and the interactive keyboard shortcuts cheat sheet. 97 assertions, all passing.
+manifest and service worker, the AI Telemetry & Observability suite, and the live 50-query vector retrieval benchmark, and drag-and-drop file ingestion in the composer, conversation branching, and direct Code Lab code-block transfer, deep PWA shortcut navigation, the interactive keyboard shortcuts cheat sheet, standalone HTML export, and @media print PDF styling. 99 assertions, all passing.
 
 The scratch harnesses under `.scratch/` (gitignored) cover the maths parser, unit conversion,
 markdown safety, the highlighter, the retrieval benchmark, the extended-pack ablation study and

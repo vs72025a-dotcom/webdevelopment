@@ -357,6 +357,8 @@ async function main(): Promise<void> {
   const convs = await idb.getAll(STORE.conversations);
   check('conversations persisted to IndexedDB', convs.length >= 1, `(got ${convs.length})`);
   check('persisted conversation has messages', (convs[0]?.messages ?? []).length >= 2);
+  check('standalone HTML export supported', fs.readFileSync('src/store/appStore.tsx', 'utf8').includes("format === 'html'"));
+  check('print & PDF stylesheet shipped', fs.readFileSync('src/styles/app.css', 'utf8').includes('@media print'));
 
   if (qa('.theme-card')[0]) {
     click(qa('.theme-card')[0]);

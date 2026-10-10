@@ -73,7 +73,7 @@ interface StoreValue {
   toast: (tone: Toast['tone'], title: string, body?: string) => void;
   dismissToast: (id: string) => void;
   wipe: () => Promise<void>;
-  exportConversation: (id: string, format: 'md' | 'json') => string;
+  exportConversation: (id: string, format: 'md' | 'json' | 'html') => string;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -800,10 +800,54 @@ export function StoreProvider({ children }: { children: ReactNode }): ReactNode 
   );
 
   const exportConversation = useCallback(
-    (id: string, format: 'md' | 'json') => {
+    (id: string, format: 'md' | 'json' | 'html') => {
       const conv = conversations.find((c) => c.id === id);
       if (!conv) return '';
       if (format === 'json') return JSON.stringify(conv, null, 2);
+      if (format === 'html') {
+        const turns = conv.messages
+          .map((m) => {
+            const role = m.role === 'user' ? 'You' : 'Aurora Mind';
+            const bg = m.role === 'user' ? '#f0f3ff' : '#ffffff';
+            const border = m.role === 'user' ? '#cdd7ff' : '#e2e6f0';
+            const cites = m.citations?.length
+              ? `<div style="margin-top:10px;font-size:11px;color:#555;"><strong>Sources:</strong> ${m.citations.map((c) => `[${c.index}] ${c.title}`).join(' · ')}</div>`
+              : '';
+            const tools = m.toolCalls?.length
+              ? `<div style="margin-top:8px;font-size:11px;color:#666;"><strong>Tools:</strong> ${m.toolCalls.map((t) => t.summary).join('; ')}</div>`
+              : '';
+            return `<article style="margin-bottom:16px;padding:16px 20px;border-radius:12px;background:${bg};border:1px solid ${border};">
+            <header style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#4b5bd7;margin-bottom:8px;">${role}</header>
+            <div style="font-size:14px;line-height:1.6;white-space:pre-wrap;color:#1a1f36;">${m.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            ${cites}${tools}
+          </article>`;
+          })
+          .join('\n');
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${conv.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')} — Aurora Mind</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #1e293b; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+h1 { font-size: 24px; margin-bottom: 4px; }
+.meta { font-size: 12px; color: #64748b; margin-bottom: 28px; }
+@media (prefers-color-scheme: dark) {
+  body { background: #0b0f19; color: #e2e8f0; }
+  article { background: #131b2e !important; border-color: #232f48 !important; }
+  article div { color: #cbd5e1 !important; }
+}
+</style>
+</head>
+<body>
+<h1>${conv.title.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</h1>
+<div class="meta">Exported from Aurora Mind on ${new Date().toLocaleDateString(undefined, { dateStyle: 'long' })} · ${conv.messages.length} messages</div>
+${turns}
+</body>
+</html>`;
+      }
       const lines = [`# ${conv.title}`, '', `_Exported ${new Date().toISOString()}_`, ''];
       for (const m of conv.messages) {
         lines.push(`## ${m.role === 'user' ? 'You' : 'Aurora Mind'}`, '', m.content, '');
