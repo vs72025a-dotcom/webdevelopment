@@ -285,11 +285,13 @@ function openWallet(){
   <div class="ref-box"><span>🎁 <b>${t('refTitle')}</b><br/><small class="muted">${t('refRule')}</small></span>
   <div class="coupon-box"><input id="refCodeOut" readonly value="${myRef.code}"/><button class="btn secondary sm" id="refShare">${t('refShare')}</button></div>
   <div class="coupon-box"><input id="refCodeIn" placeholder="${t('refApply')}" ${myRef.used?`value="${esc(myRef.used)}" disabled`:''}/><button class="btn primary sm" id="refGo" ${myRef.used?'disabled':''}>${t('refGo')}</button></div></div>
+  ${leaderboardHTML()}
   <div class="addr-head"><h4>🧾 ${t('loyHist')}</h4></div>
   ${(loyalty.hist||[]).length ? (loyalty.hist||[]).map(h=>`<div class="loy-row"><span class="lr-e">${h.pts>0?'🪙':'💸'}</span><div style="flex:1"><b>${h.pts>0?'+':''}${h.pts} ${t('loyPts')}</b><br/><small class="muted">${esc(h.label||'')}</small></div><small class="muted">${timeAgo(h.ts)}</small></div>`).join('') : `<p class="muted center">${t('loyEmpty')}</p>`}</div>`;
   openModal('walletModal');
   const rs = $('#refShare'); if(rs) rs.onclick = shareReferral;
   const rg = $('#refGo'); if(rg) rg.onclick = ()=>applyReferral(($('#refCodeIn')||{value:''}).value);
+  const rd = $('#refDemo'); if(rd) rd.onclick = demoFriendJoin;
 }
 
 /* ---------------- v7: subscriptions + referrals + split tracking ---------------- */
@@ -307,15 +309,16 @@ function fulfillSubs(){
   let made = [];
   subs.forEach(s=>{
     if(!s || s.active===false || (s.nextTs||0) > Date.now()) return;
-    const p = getP(s.pid); if(!p) return;
+    const lines = subItems(s).map(i=>({ p:getP(i.pid), qty:i.qty })).filter(x=>x.p);
+    if(!lines.length) return;
     const addr = addrs[0] ? { name:addrs[0].name, phone:addrs[0].phone, line:addrs[0].line, city:addrs[0].city, pin:addrs[0].pin }
       : { name:(user&&user.name)||'Subscriber', phone:(user&&user.phone)||'', line:'', city:location.n, pin:location.pin };
-    const sub = p.p*s.qty, disc = Math.round(sub*SUB_SAVE_PCT/100);
+    const sub = lines.reduce((a,x)=>a+x.p.p*x.qty,0), disc = Math.round(sub*SUB_SAVE_PCT/100);
     const cm = settings.commerce;
     const del = (sub-disc) >= cm.freeAbove ? 0 : cm.deliveryFee;
     const tax = Math.max(0,sub-disc)*cm.taxPct/100;
     const total = Math.max(0, Math.round(sub-disc+del+tax));
-    const o = { id:uid('AW').toUpperCase(), items:[{id:p.id,qty:s.qty,price:p.p}], total, sub, discount:disc,
+    const o = { id:uid('AW').toUpperCase(), items:lines.map(x=>({id:x.p.id,qty:x.qty,price:x.p.p})), total, sub, discount:disc,
       status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
       addr, pay:'Subscription 🔁', upi:'', placedAt:Date.now(), slot:{}, gift:null, rating:null, subId:s.id };
     orders.push(o); made.push(o);
@@ -332,19 +335,27 @@ function fulfillSubs(){
 function openSubs(){
   const box = $('#subBox'); if(!box) return;
   const rows = subs.map(s=>{
-    const p = getP(s.pid);
-    const nm = p ? `${p.e} ${p.n}` : s.pid;
+    const nm = subName(s);
     const paused = s.active===false;
-    return `<div class="split-row"><div style="flex:1"><b>${esc(nm)} × ${s.qty}</b><br/>
+    return `<div class="split-row"><div style="flex:1"><b>${esc(nm)}${s.boxId?'':` × ${s.qty}`}</b><br/>
       <small class="muted">${t('subEvery')} ${subFreqName(s.freq)} • ${t('subNext')}: ${new Date(s.nextTs).toLocaleDateString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'})}</small><br/>
       <span class="status ${paused?'st-placed':'st-delivered'}" style="font-size:11px">${paused?t('subPaused'):t('subActive')}</span></div>
       <div class="sub-btns"><button class="btn ghost sm" data-subskip="${s.id}">⏭ ${t('subSkip')}</button>
       <button class="btn secondary sm" data-subpause="${s.id}">${paused?'▶ '+t('subResume'):t('subPause')}</button>
       <button class="btn danger-ghost sm" data-subdel="${s.id}">✕</button></div></div>`;
   }).join('');
+  const boxes = SUB_BOXES.map(b=>{ const on = subs.some(s=>s.boxId===b.id && s.active!==false);
+    return `<div class="box-card"><span class="box-e">${b.e}</span><div style="flex:1"><b>${esc(boxName(b))}</b><br/>
+    <small class="muted">${b.items.map(i=>{const q=getP(i.pid);return (q?q.e:'📦')+'×'+i.qty;}).join(' ')}</small><br/>
+    <small><b>${fmt(boxTotal(b))}</b> • ${t('subEvery')} ${subFreqName(b.freq)}</small></div>
+    <button class="btn ${on?'ghost':'primary'} sm" data-boxsub="${b.id}" ${on?'disabled':''}>${on?'✓':t('boxGo')}</button></div>`; }).join('');
   box.innerHTML = `<div class="modal-head"><h3>🔁 ${t('subTitle')}</h3><button class="icon-btn" onclick="document.getElementById('subModal').classList.remove('show')">✕</button></div>
-  <div class="modal-body">${subs.length?`<div class="split-list">${rows}</div>`:`<div class="empty"><div class="big">🔁</div><p>${t('subEmpty')}</p></div>`}</div>`;
+  <div class="modal-body"><div class="addr-head"><h4>📦 ${t('boxTitle')}</h4></div>
+  <p class="muted small" style="margin:-6px 0 10px">${t('boxSub')}</p>
+  <div class="split-list" style="margin-bottom:14px">${boxes}</div>
+  ${subs.length?`<div class="addr-head"><h4>🔁 ${t('subTitle')}</h4></div><div class="split-list">${rows}</div>`:`<div class="empty"><div class="big">🔁</div><p>${t('subEmpty')}</p></div>`}</div>`;
   openModal('subModal');
+  $$('[data-boxsub]',box).forEach(b=>b.onclick=()=>{ addBox(b.dataset.boxsub); openSubs(); });
   $$('[data-subskip]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subskip); if(s){ s.nextTs=Date.now()+s.freq*864e5; saveSubs(); cloudUp(); openSubs(); toast(t('subNext')+': '+new Date(s.nextTs).toLocaleDateString(),'⏭'); } });
   $$('[data-subpause]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subpause); if(s){ s.active=s.active===false?true:false; saveSubs(); cloudUp(); openSubs(); } });
   $$('[data-subdel]',box).forEach(b=>b.onclick=()=>{ subs=subs.filter(x=>x.id!==b.dataset.subdel); saveSubs(); cloudUp(); openSubs(); });
@@ -375,7 +386,87 @@ function splitTrackHTML(o){
   if(sibs.length < 2) return '';
   return `<div class="rev"><b>📦 ${t('trkSplit')}</b><div class="split-list" style="margin-top:10px">${sibs.map(s=>`<div class="split-row"><div style="flex:1"><b>${s.splitIdx} ${t('splitOf')} ${s.splitCount} • #${s.id}</b><br/><small class="muted">📍 ${esc(s.addr.city||'')} • ${statusName(s.status)}</small></div>${s.id===o.id?`<span class="status st-${['placed','preparing','shipped','out','delivered'][s.status]}">${statusName(s.status)}</span>`:`<button class="btn secondary sm" data-sibgo="${s.id}">📍 ${t('trkOpen')}</button>`}</div>`).join('')}</div></div>`;
 }
-function subEvTitle(o){ const it=(o.items||[])[0]||{}; const p=getP(it.id); return `<b>${p?esc(p.n):'🔁'} × ${it.qty||1}</b>`; }
+function subEvTitle(o){
+  const s = (subs||[]).find(x=>x.id===(o&&o.id));
+  if(s && s.boxId) return `<b>${esc(subName(s))}</b>`;
+  const it=((o&&o.items)||[])[0]||{}; const p=getP(it.id); return `<b>${p?esc(p.n):'🔁'} × ${it.qty||1}</b>`;
+}
+/* ---------------- v8: boxes + leaderboard + proof ---------------- */
+function boxName(b){ return HI()?b.hi:b.en; }
+function boxTotal(b){ return (b.items||[]).reduce((a,i)=>{ const p=getP(i.pid); return a+(p?p.p*i.qty:0); },0); }
+function subItems(s){
+  if(s && s.box && Array.isArray(s.box.items)) return s.box.items;
+  if(!s) return [];
+  return [{ pid:s.pid, qty:s.qty||1 }];
+}
+function subName(s){
+  if(s && s.boxId){ const b = SUB_BOXES.find(x=>x.id===s.boxId); if(b) return `${b.e} ${boxName(b)}`; }
+  const p = s ? getP(s.pid) : null; return p ? `${p.e} ${p.n}` : (s&&s.pid)||'';
+}
+function addBox(bid){
+  const b = SUB_BOXES.find(x=>x.id===bid); if(!b) return null;
+  const ex = subs.find(s=>s.boxId===bid && s.active!==false);
+  if(ex){ ex.nextTs = Date.now()+ex.freq*864e5; saveSubs(); cloudUp(); return ex; }
+  const s = { id:uid('SB'), pid:(b.items[0]||{}).pid, qty:1, freq:b.freq, nextTs:Date.now()+b.freq*864e5, active:true, createdAt:Date.now(), boxId:bid, box:{ items:b.items.map(i=>({pid:i.pid,qty:i.qty})) } };
+  subs.push(s); saveSubs(); cloudUp();
+  notify('📦 '+t('boxActive'), `${b.e} ${boxName(b)} • ${t('subEvery')} ${subFreqName(s.freq)}`, '📦');
+  return s;
+}
+function myRefScore(){ return ((myRef.used)?REF_PTS:0) + ((myRef.count||0)*REF_PTS); }
+function leaderboardHTML(){
+  const rows = REF_BOARD.map(r=>({ n:r.n, pts:r.pts, you:false }));
+  rows.push({ n:t('lbYou'), pts:myRefScore(), you:true });
+  rows.sort((a,b)=>b.pts-a.pts);
+  const medals = ['🥇','🥈','🥉'];
+  return `<div class="addr-head"><h4>🏆 ${t('lbTitle')}</h4></div>
+  <div class="lb-list">${rows.map((r,i)=>`<div class="lb-row${r.you?' you':''}"><span>${medals[i]||`${i+1}.`}</span><b style="flex:1">${esc(r.n)}${r.you?` <small class="muted">${esc(myRef.code)}</small>`:''}</b><span>${r.pts} ${t('lbPts')}</span></div>`).join('')}</div>
+  <p class="muted small center">${t('lbRank')}: <b>#${rows.findIndex(r=>r.you)+1}</b></p>
+  <button class="btn ghost sm full" id="refDemo">🧪 ${t('lbDemo')}</button>`;
+}
+function demoFriendJoin(){
+  myRef.count = (myRef.count||0)+1; LS.set('aw_ref_v1', myRef);
+  loyAdd(REF_PTS, `🎁 ${t('lbDemo')}`);
+  notify(`🎁 ${t('refOk')}`, `${t('loyBal')}: ${loyalty.pts}`, '🎁');
+  openWallet();
+}
+function snapProof(o){
+  try{
+    if(!o || o.proof) return !!(o&&o.proof);
+    if(typeof document==='undefined') return false;
+    const c = document.createElement('canvas'); c.width=320; c.height=200;
+    const ctx = c.getContext ? c.getContext('2d') : null;
+    if(!ctx || !ctx.fillRect) return false;
+    const em = (o.items||[]).map(i=>{const p=getP(i.id);return p?p.e:'';}).filter(Boolean).slice(0,3).join(' ')||'📦';
+    const g = ctx.createLinearGradient(0,0,320,200);
+    g.addColorStop(0,'#0ea5e9'); g.addColorStop(1,'#6366f1');
+    ctx.fillStyle=g; ctx.fillRect(0,0,320,200);
+    ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(0,150,320,50);
+    ctx.font='64px serif'; ctx.textAlign='center'; ctx.fillText(em,160,105);
+    ctx.font='bold 20px sans-serif'; ctx.fillStyle='#fff';
+    ctx.fillText('✓ '+(HI()?'डिलीवर हुआ':'DELIVERED'),160,140);
+    ctx.font='13px sans-serif'; ctx.fillStyle='#e0f2fe';
+    ctx.fillText('#'+o.id+' • '+new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),160,175);
+    o.proof = c.toDataURL('image/jpeg', .8);
+    saveOrders(); cloudUp();
+    return true;
+  }catch{ return false; }
+}
+function proofHTML(o){
+  if(!o || o.status!==4) return '';
+  if(o.proof) return `<div class="rev"><b>📸 ${t('proofTitle')}</b><img class="proof-img" src="${o.proof}" alt="proof"/><p class="muted small">✓ ${t('proofBy')}</p></div>`;
+  return `<div class="rev"><b>📸 ${t('proofTitle')}</b><p class="muted small">${t('proofNone')}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary sm" id="proofSnap">📸 ${t('proofSnap')}</button>
+    <label class="btn ghost sm" style="cursor:pointer">⬆ ${t('proofUpload')}<input type="file" id="proofFile" accept="image/*" hidden/></label></div></div>`;
+}
+function bindProof(o){
+  const sn = $('#proofSnap');
+  if(sn) sn.onclick = ()=>{ if(snapProof(o)){ saveOrders(); cloudUp(); openTrack(o.id); if(route.page==='orders')renderPage(); toast('📸 '+t('proofTitle'),'📸'); } else toast(t('proofNone'),'⚠️'); };
+  const pf = $('#proofFile');
+  if(pf) pf.onchange = ()=>{
+    const f = pf.files && pf.files[0]; if(!f) return;
+    fileToDataURL(f, 640, .75).then(url=>{ o.proof=url; saveOrders(); cloudUp(); openTrack(o.id); if(route.page==='orders')renderPage(); toast('📸 '+t('proofTitle'),'📸'); }).catch(()=>toast(t('proofNone'),'⚠️'));
+  };
+}
 
 /* ---------------- Calendar helpers ---------------- */
 const isoDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
@@ -395,7 +486,7 @@ function orderEvents(){
   try{
     (subs||[]).forEach(s=>{
       if(!s || s.active===false) return;
-      for(let k=0;k<2;k++) evs.push({ d:isoDay((s.nextTs||Date.now())+k*(s.freq||30)*864e5), type:'sub', o:{ id:s.id, total:0, items:[{id:s.pid,qty:s.qty}], addr:{city:''} } });
+      for(let k=0;k<2;k++) evs.push({ d:isoDay((s.nextTs||Date.now())+k*(s.freq||30)*864e5), type:'sub', o:{ id:s.id, total:0, items:subItems(s).map(i=>({id:i.pid,qty:i.qty})), addr:{city:''} } });
     });
   }catch{}
   orders.forEach(o=>{
@@ -738,6 +829,7 @@ function orderCardHTML(o){
     ${o.scheduledFor?`<span>⏰ ${esc(schedLabel(o.scheduledFor))}${schedCountdown(o.scheduledFor)?` • ${esc(schedCountdown(o.scheduledFor))}`:''}</span>`:''}
     ${o.splitCount?`<span>📦 ${o.splitIdx} ${t('splitOf')} ${o.splitCount} ${t('splitShip')}</span>`:''}
     ${o.subId?`<span>🔁 ${t('subBtn')}</span>`:''}
+    ${o.proof?`<span>📸 ${t('proofTitle')}</span>`:''}
     ${o.rating?`<span style="color:#f59e0b">★ ${o.rating.stars}</span>`:''}</div>
     <div class="track-steps">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
     ${o.return?`<div class="refund-line">↩ ${t('retStatus')}: <b>${retStatusName(o.return.status)}</b> • ${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</div>`:''}
@@ -1538,6 +1630,7 @@ function openTrack(id){
       ? `<div class="rev"><b>⭐ ${t('rateBtn')}</b><p style="color:#f59e0b;font-size:16px">${stars(o.rating.stars)}</p></div>`
       : `<button class="btn secondary full" id="trackRate" style="margin-bottom:10px">⭐ ${t('rateBtn')} — ${rider.name}</button>`) : ''}
     ${splitTrackHTML(o)}
+    ${proofHTML(o)}
     <div class="rev"><b>🧾 ${t('coItems')}</b><p>${items.map(esc).join('<br/>')}</p></div>
     <div class="rev"><b>📍 ${t('pDeliverTo')}</b><p>${esc(o.addr.name)} • ${esc(o.addr.line)}, ${esc(o.addr.city)} ${esc(o.addr.pin)}</p></div>
     <div class="bill-row total"><span>${HI()?'भुगतान':'Paid via'} ${esc(o.pay)}${o.razorpay&&o.razorpay.payment_id?' • …'+esc(o.razorpay.payment_id.slice(-6)):''}</span><span>${fmt(o.total)}</span></div>
@@ -1546,12 +1639,13 @@ function openTrack(id){
   openModal('trackModal');
   trackToken++;
   $$('[data-sibgo]',box).forEach(b=>b.onclick=()=>openTrack(b.dataset.sibgo));
+  bindProof(o);
   animateRider(o, trackToken);
   const tr = $('#trackRate');
   if(tr) tr.onclick = ()=>openRate(id);
   const sn = $('#simNext');
   if(sn) sn.onclick = ()=>{
-    o.status=Math.min(4,o.status+1); saveOrders(); cloudUp();
+    o.status=Math.min(4,o.status+1); if(o.status===4) snapProof(o); saveOrders(); cloudUp();
     notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, o.status===4?'✅':'📦');
     openTrack(id); if(route.page==='orders')renderPage(); toast('Status: '+statusName(o.status),'📦');
   };
@@ -1632,6 +1726,7 @@ function tickSim(){
     }
     if(o.status<4 && Math.random()<.25){
       o.status++; moved=true;
+      if(o.status===4) snapProof(o);
       notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, o.status===4?'✅':'📦');
     } else if(o.return && o.return.status<3 && Math.random()<.22){
       o.return.status++; moved=true;

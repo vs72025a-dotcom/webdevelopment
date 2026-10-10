@@ -637,3 +637,11 @@ html[data-theme="dark"] .toast{background:#fff;color:#111}
 .dot-sub{background:#8b5cf6}
 .ev-sub{background:#ede9fe;color:#6d28d9}
 [data-theme="dark"] .ev-sub{background:#4c1d95;color:#ede9fe}
+
+/* ---- v8: boxes / leaderboard / proof ---- */
+.box-card{display:flex;gap:12px;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px}
+.box-e{font-size:34px}
+.lb-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.lb-row{display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border)}
+.lb-row.you{border:2px solid var(--primary);background:color-mix(in srgb,var(--primary) 8%,var(--surface-2))}
+.proof-img{width:100%;border-radius:var(--radius-sm);margin:10px 0 4px;border:1px solid var(--border)}

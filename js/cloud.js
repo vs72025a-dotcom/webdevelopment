@@ -77,6 +77,7 @@ const Cloud = {
       if((c.status||0) > (m.status||0)){ m.status = c.status; changed = true; }
       if(c.return && (!m.return || (c.return.status||0) > (m.return.status||0))){ m.return = c.return; changed = true; }
       if(c.rating && !m.rating){ m.rating = c.rating; changed = true; }
+      if(c.proof && !m.proof){ m.proof = c.proof; changed = true; }
     });
     if(changed){
       saveOrders();

@@ -62,6 +62,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **📦 Split-shipment tracking** — tracking any split parcel shows all sibling shipments with per-city status and one-tap jump between them
 
+**📦 Essentials boxes** — 4 curated grocery boxes (Breakfast, Monthly Staples, Fresh Weekly, Snack Attack): one-tap subscribe, multi-item auto-orders with 5% off, box renewal events on the calendar
+
+**🏆 Referral leaderboard** — live ranked board in the wallet with medals, your rank, and a demo join button to watch yourself climb
+
+**📸 Delivery-photo proof** — delivered orders auto-attach a rider snapshot (generated + timestamped); recipients can view it on tracking/cards, retake, or upload their own photo
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs

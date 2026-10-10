@@ -229,6 +229,9 @@ en:{
   subTitle:'My Subscriptions', subBtn:'Subscribe', subEvery:'Every', subWeek:'week', sub2Week:'2 weeks', subMonth:'month', subSave:'Subscribe & Save 5%', subEmpty:'No subscriptions yet — subscribe to groceries from any product page!', subNext:'Next delivery', subPause:'Pause', subResume:'Resume', subCancel:'Cancel', subSkip:'Skip next', subActive:'Active', subPaused:'Paused', subDone:'Subscription order placed!',
   refTitle:'Refer & Earn', refYou:'Your referral code', refShare:'Share', refCopied:'Code copied — share it!', refApply:"Apply a friend's code", refGo:'Apply', refOk:'Referral applied! +50 pts', refBad:'Invalid or already-used code', refRule:'You get +50 pts, your friend gets +50 too',
   trkSplit:'Shipments in this order', trkOpen:'Track', calSub:'Subscription',
+  boxTitle:'Essentials boxes', boxSub:'Curated grocery boxes — subscribe once, auto-delivered', boxItems:'items', boxGo:'Subscribe box', boxIn:'In this box', boxActive:'Box subscribed!',
+  lbTitle:'Referral leaderboard', lbYou:'You', lbPts:'pts', lbDemo:'Demo: a friend joined (+50)', lbRank:'Your rank',
+  proofTitle:'Delivery photo', proofSnap:'Simulate rider photo', proofUpload:'Upload photo', proofNone:'No photo yet — the rider snapshot appears here on delivery.', proofBy:'Snapped at delivery',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -279,6 +282,9 @@ hi:{
   subTitle:'मेरे सब्सक्रिप्शन', subBtn:'सब्सक्राइब', subEvery:'हर', subWeek:'सप्ताह', sub2Week:'2 सप्ताह', subMonth:'महीना', subSave:'सब्सक्राइब करें — 5% बचाएं', subEmpty:'अभी कोई सब्सक्रिप्शन नहीं — किसी प्रोडक्ट पेज से सब्सक्राइब करें!', subNext:'अगली डिलीवरी', subPause:'रोकें', subResume:'चालू करें', subCancel:'रद्द करें', subSkip:'अगली छोड़ें', subActive:'चालू', subPaused:'रुका', subDone:'सब्सक्रिप्शन ऑर्डर हो गया!',
   refTitle:'रेफर करें व कमाएं', refYou:'आपका रेफरल कोड', refShare:'शेयर', refCopied:'कोड कॉपी हुआ — शेयर करें!', refApply:'दोस्त का कोड लगाएं', refGo:'लगाएं', refOk:'रेफरल लगा! +50 पॉइंट', refBad:'गलत या इस्तेमाल किया कोड', refRule:'आपको +50, दोस्त को भी +50',
   trkSplit:'इस ऑर्डर के पार्सल', trkOpen:'ट्रैक', calSub:'सब्सक्रिप्शन',
+  boxTitle:'ज़रूरी बॉक्स', boxSub:'चुने हुए किराना बॉक्स — एक बार सब्सक्राइब करें, ऑटो-डिलीवरी पाएं', boxItems:'सामान', boxGo:'बॉक्स सब्सक्राइब', boxIn:'इस बॉक्स में', boxActive:'बॉक्स सब्सक्राइब हुआ!',
+  lbTitle:'रेफरल लीडरबोर्ड', lbYou:'आप', lbPts:'पॉइंट', lbDemo:'डेमो: दोस्त जुड़ा (+50)', lbRank:'आपकी रैंक',
+  proofTitle:'डिलीवरी फोटो', proofSnap:'राइडर फोटो बनाएं', proofUpload:'फोटो अपलोड', proofNone:'अभी फोटो नहीं — डिलीवरी पर राइडर फोटो यहां दिखेगी।', proofBy:'डिलीवरी पर ली गई',
 }};
 
 const RETURN_REASONS = [
@@ -302,3 +308,13 @@ const RATING_TAGS = [
   { en:'On time', hi:'समय पर' }, { en:'Friendly', hi:'मिलनसार' },
 ];
 const SUB_FREQS = [7, 14, 30], SUB_SAVE_PCT = 5, REF_PTS = 50;
+const SUB_BOXES = [
+  { id:'bx1', en:'Breakfast Box', hi:'नाश्ता बॉक्स', e:'🥣', freq:7, items:[{pid:'g3',qty:2},{pid:'g4',qty:1},{pid:'g10',qty:1}] },
+  { id:'bx2', en:'Monthly Staples', hi:'मासिक राशन', e:'🧺', freq:30, items:[{pid:'g5',qty:1},{pid:'g6',qty:1},{pid:'g9',qty:1}] },
+  { id:'bx3', en:'Fresh Weekly', hi:'ताज़ा साप्ताहिक', e:'🥬', freq:7, items:[{pid:'g1',qty:1},{pid:'g2',qty:1},{pid:'g3',qty:2}] },
+  { id:'bx4', en:'Snack Attack', hi:'स्नैक बॉक्स', e:'🍿', freq:14, items:[{pid:'g7',qty:1},{pid:'g8',qty:2}] },
+];
+const REF_BOARD = [
+  { n:'Aarav', pts:480 }, { n:'Priya', pts:350 }, { n:'Kabir', pts:300 },
+  { n:'Neha', pts:210 }, { n:'Rohan', pts:150 }, { n:'Isha', pts:90 }, { n:'Dev', pts:50 },
+];
