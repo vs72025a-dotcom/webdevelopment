@@ -1,0 +1,172 @@
+/* ============================================================
+   AnyWhere Anything — Seed Data
+   ============================================================ */
+const VERTICALS = [
+  { id:'food',        name:'Food',        emoji:'🍔', grad:'g1', tag:'30-min delivery' },
+  { id:'grocery',     name:'Grocery',     emoji:'🥦', grad:'g2', tag:'Farm fresh' },
+  { id:'fashion',     name:'Fashion',     emoji:'👗', grad:'g4', tag:'Top brands' },
+  { id:'electronics', name:'Electronics', emoji:'🎧', grad:'g3', tag:'Genuine + warranty' },
+  { id:'pharmacy',    name:'Pharmacy',    emoji:'💊', grad:'g7', tag:'100% genuine' },
+  { id:'home',        name:'Home & Kitchen', emoji:'🏠', grad:'g6', tag:'Everything home' },
+  { id:'beauty',      name:'Beauty',      emoji:'💄', grad:'g8', tag:'Glow up' },
+  { id:'services',    name:'Services',    emoji:'🧹', grad:'g5', tag:'At your doorstep' },
+];
+
+const CATEGORIES = {
+  food:['Pizza','Biryani','Burgers','Chinese','Desserts','South Indian','North Indian','Beverages'],
+  grocery:['Fruits','Vegetables','Dairy','Snacks','Staples','Beverages','Frozen','Baby Care'],
+  fashion:['Men','Women','Kids','Footwear','Watches','Bags','Accessories'],
+  electronics:['Audio','Mobiles','Laptops','Wearables','Cameras','Home Appliances','Gaming'],
+  pharmacy:['Ayurveda','Vitamins','Personal Care','Devices','Baby & Mother','First Aid'],
+  home:['Kitchen','Decor','Furniture','Cleaning','Storage','Lighting'],
+  beauty:['Skincare','Haircare','Makeup','Fragrance','Bath & Body','Men Grooming'],
+  services:['Cleaning','Repair','Salon','Plumbing','Electrician','Painting'],
+};
+
+/* id, n=name, v=vertical, c=category, p=price, m=mrp, r=rating, rc=count, e=emoji, g=gradient, d=desc, veg, badge, t=time, s=store, u=unit */
+const SEED_PRODUCTS = [
+/* ---------------- FOOD ---------------- */
+{id:'f1',n:'Farmhouse Veggie Pizza (Medium)',v:'food',c:'Pizza',p:299,m:449,r:4.5,rc:2314,e:'🍕',g:'g1',d:'Loaded garden veggies, extra mozzarella, signature tomato sauce on a hand-tossed crust.',veg:true,badge:'Bestseller',t:'30 min',s:"Tony's Pizzeria",u:'Medium 10"'},
+{id:'f2',n:'Chicken Dum Biryani + Raita',v:'food',c:'Biryani',p:249,m:349,r:4.7,rc:5120,e:'🍛',g:'g6',d:'Slow-cooked seeraga samba rice layered with juicy chicken, served with raita & brinjal curry.',veg:false,badge:'Must Try',t:'35 min',s:'Dum House',u:'Serves 1-2'},
+{id:'f3',n:'Double Cheese Smash Burger',v:'food',c:'Burgers',p:179,m:249,r:4.4,rc:1876,e:'🍔',g:'g6',d:'Two crispy veg patties, double cheese, chipotle mayo in a toasted brioche bun.',veg:true,t:'25 min',s:'Burger Barn',u:'1 pc'},
+{id:'f4',n:'Hakka Noodles + Manchurian Combo',v:'food',c:'Chinese',p:199,m:299,r:4.3,rc:1204,e:'🍜',g:'g1',d:'Wok-tossed hakka noodles with veg manchurian balls in garlic-soy glaze.',veg:true,t:'30 min',s:'Dragon Wok',u:'Combo'},
+{id:'f5',n:'Molten Choco Lava Cake (2 pc)',v:'food',c:'Desserts',p:149,m:199,r:4.8,rc:3411,e:'🍩',g:'g4',d:'Warm gooey-centre chocolate lava cakes. Pure indulgence, baked fresh on order.',veg:true,badge:'Trending',t:'25 min',s:'Sugar Rush',u:'Pack of 2'},
+{id:'f6',n:'Masala Dosa Family Pack',v:'food',c:'South Indian',p:229,m:299,r:4.6,rc:2087,e:'🥞',g:'g6',d:'3 crispy ghee masala dosas with sambar, coconut & tomato chutneys.',veg:true,t:'30 min',s:'Madurai Meals',u:'Pack of 3'},
+{id:'f7',n:'Butter Chicken + Naan (2 pc)',v:'food',c:'North Indian',p:289,m:399,r:4.7,rc:4022,e:'🍗',g:'g1',d:'Creamy tomato-butter chicken with charred tandoori naan. Rich & smoky.',veg:false,badge:'Bestseller',t:'35 min',s:'Punjabi Tadka',u:'Combo'},
+{id:'f8',n:'Cold Coffee Frappe (Large)',v:'food',c:'Beverages',p:129,m:179,r:4.4,rc:987,e:'🥤',g:'g7',d:'Double-shot espresso blended thick with vanilla ice cream & cocoa dust.',veg:true,t:'20 min',s:'Brew Bar',u:'450 ml'},
+{id:'f9',n:'Paneer Tikka Sub + Fries',v:'food',c:'Burgers',p:189,m:259,r:4.2,rc:764,e:'🥪',g:'g2',d:'Smoky paneer tikka stuffed sub with mint mayo + peri-peri fries.',veg:true,t:'25 min',s:'Sub Station',u:'Combo'},
+{id:'f10',n:'Sushi Platter (12 pc)',v:'food',c:'Chinese',p:549,m:799,r:4.6,rc:432,e:'🍣',g:'g3',d:'California rolls, veg maki & nigiri with soy, wasabi & pickled ginger.',veg:false,badge:'Premium',t:'40 min',s:'Tokyo Table',u:'12 pc'},
+{id:'f11',n:'Gulab Jamun Cheesecake Slice',v:'food',c:'Desserts',p:159,m:219,r:4.7,rc:1102,e:'🍰',g:'g4',d:'Fusion cheesecake topped with mini gulab jamuns & pistachio dust.',veg:true,t:'25 min',s:'Sugar Rush',u:'1 slice'},
+{id:'f12',n:'Idli Sambar + Filter Coffee',v:'food',c:'South Indian',p:99,m:149,r:4.5,rc:1560,e:'☕',g:'g6',d:'Cloud-soft idlis with hot sambar + authentic degree filter coffee.',veg:true,t:'20 min',s:'Madurai Meals',u:'Combo'},
+/* ---------------- GROCERY ---------------- */
+{id:'g1',n:'Fresh Alphonso Mangoes (1 kg)',v:'grocery',c:'Fruits',p:349,m:499,r:4.6,rc:876,e:'🥭',g:'g1',d:'Ratnagiri alphonsos, naturally ripened. Sweet, aromatic, fibreless.',veg:true,badge:'Seasonal',t:'2 hrs',s:'Fresh Farm',u:'1 kg'},
+{id:'g2',n:'Organic Vegetable Basket (3 kg)',v:'grocery',c:'Vegetables',p:299,m:420,r:4.4,rc:1230,e:'🥦',g:'g2',d:'Seasonal farm veggies: tomato, onion, potato, carrot, beans, greens & more.',veg:true,t:'2 hrs',s:'Fresh Farm',u:'3 kg'},
+{id:'g3',n:'A2 Desi Cow Milk (1 L)',v:'grocery',c:'Dairy',p:85,m:99,r:4.7,rc:3410,e:'🥛',g:'g7',d:'Farm-fresh A2 milk, pasteurised & chilled. Delivered within hours of milking.',veg:true,t:'Morning',s:'Dairy Pure',u:'1 L'},
+{id:'g4',n:'Farm Eggs Protein Pack (12 pc)',v:'grocery',c:'Dairy',p:110,m:140,r:4.5,rc:2210,e:'🥚',g:'g1',d:'Protein-rich brown eggs from free-range hens. Crack-checked & hygienic.',veg:false,t:'2 hrs',s:'Dairy Pure',u:'12 pc'},
+{id:'g5',n:'Whole Wheat Atta (5 kg)',v:'grocery',c:'Staples',p:265,m:320,r:4.5,rc:1870,e:'🌾',g:'g6',d:'100% MP sharbati wheat, stone-ground. Soft rotis every time.',veg:true,t:'2 hrs',s:'Daily Needs',u:'5 kg'},
+{id:'g6',n:'Basmati Rice Premium (5 kg)',v:'grocery',c:'Staples',p:649,m:850,r:4.6,rc:990,e:'🍚',g:'g1',d:'Extra-long grain aged basmati. Aromatic, non-sticky, biryani-perfect.',veg:true,badge:'Bestseller',t:'2 hrs',s:'Daily Needs',u:'5 kg'},
+{id:'g7',n:'Mixed Dry Fruits (500 g)',v:'grocery',c:'Snacks',p:499,m:699,r:4.7,rc:760,e:'🥜',g:'g6',d:'Almonds, cashews, raisins, pista & walnuts. Premium handpicked mix.',veg:true,t:'2 hrs',s:'Nutty Yours',u:'500 g'},
+{id:'g8',n:'Masala Chips Party Pack (10)',v:'grocery',c:'Snacks',p:199,m:250,r:4.3,rc:1540,e:'🍟',g:'g1',d:'10 tangy masala chip pouches. Party-ready crunch.',veg:true,t:'2 hrs',s:'Snack Street',u:'10 pack'},
+{id:'g9',n:'Cold-Pressed Coconut Oil (1 L)',v:'grocery',c:'Staples',p:429,m:549,r:4.8,rc:640,e:'🥥',g:'g2',d:'Single-origin coconuts, wood-pressed. For cooking, hair & skin.',veg:true,t:'2 hrs',s:'Daily Needs',u:'1 L'},
+{id:'g10',n:'Greek Yogurt Cups (4 × 100 g)',v:'grocery',c:'Dairy',p:180,m:220,r:4.4,rc:520,e:'🍦',g:'g7',d:'Thick high-protein greek yogurt in mango, berry, vanilla & plain.',veg:true,t:'2 hrs',s:'Dairy Pure',u:'4 pack'},
+{id:'g11',n:'Frozen Green Peas (1 kg)',v:'grocery',c:'Frozen',p:140,m:180,r:4.2,rc:410,e:'🫛',g:'g2',d:'Farm-frozen sweet peas. Ready-to-cook, no preservatives.',veg:true,t:'2 hrs',s:'Frosty',u:'1 kg'},
+{id:'g12',n:'Baby Diapers Newborn (58 pc)',v:'grocery',c:'Baby Care',p:599,m:799,r:4.6,rc:890,e:'👶',g:'g8',d:'12-hr dryness, rash-guard, ultra-soft newborn diapers.',veg:true,t:'2 hrs',s:'Baby Bliss',u:'58 pc'},
+/* ---------------- FASHION ---------------- */
+{id:'a1',n:'Men Slim-Fit Denim Jacket',v:'fashion',c:'Men',p:1499,m:2999,r:4.5,rc:640,e:'🧥',g:'g3',d:'Mid-wash stretch denim, all-season layering essential. Sizes S–XXL.',t:'2 days',s:'Urban Thread',u:'1 pc'},
+{id:'a2',n:'Women Floral Summer Dress',v:'fashion',c:'Women',p:1099,m:2199,r:4.6,rc:920,e:'👗',g:'g4',d:'Breezy rayon midi with pockets. Sizes XS–XL.',t:'2 days',s:'Velvet Vogue',u:'1 pc',badge:'Trending'},
+{id:'a3',n:'Kids Dino Hoodie (4–10 yrs)',v:'fashion',c:'Kids',p:649,m:1299,r:4.7,rc:510,e:'🧸',g:'g1',d:'Super-soft fleece hoodie with glow-in-dark dino print.',t:'2 days',s:'Tiny Toes',u:'1 pc'},
+{id:'a4',n:'Running Sports Shoes',v:'fashion',c:'Footwear',p:1899,m:3499,r:4.4,rc:1730,e:'👟',g:'g7',d:'Lightweight breathable knit, anti-skid sole. UK 6–11.',t:'3 days',s:'StrideX',u:'1 pair',badge:'Bestseller'},
+{id:'a5',n:'Minimal Steel Watch',v:'fashion',c:'Watches',p:2499,m:4999,r:4.8,rc:430,e:'⌚',g:'g5',d:'Sapphire-coated dial, 5ATM, genuine leather strap. 2-yr warranty.',t:'3 days',s:'TimeCraft',u:'1 pc'},
+{id:'a6',n:'Leather Office Backpack',v:'fashion',c:'Bags',p:1799,m:3599,r:4.5,rc:380,e:'🎒',g:'g6',d:'Vegan leather, 15.6" laptop sleeve, USB port, anti-theft pocket.',t:'2 days',s:'Urban Thread',u:'1 pc'},
+{id:'a7',n:'Aviator Sunglasses',v:'fashion',c:'Accessories',p:899,m:1999,r:4.3,rc:720,e:'🕶️',g:'g1',d:'Polarised UV400 gold-frame aviators with hard case.',t:'2 days',s:'Shade House',u:'1 pc'},
+{id:'a8',n:'Cotton Oversized T-Shirt',v:'fashion',c:'Men',p:499,m:999,r:4.4,rc:2140,e:'👕',g:'g2',d:'240 GSM bio-washed cotton, drop shoulders. 6 colours.',t:'2 days',s:'Urban Thread',u:'1 pc'},
+{id:'a9',n:'Block-Heel Sandals',v:'fashion',c:'Footwear',p:1299,m:2599,r:4.5,rc:560,e:'👠',g:'g4',d:'Cushioned 2" block heels, all-day comfort. UK 3–8.',t:'3 days',s:'Velvet Vogue',u:'1 pair'},
+{id:'a10',n:'Silk Saree with Blouse',v:'fashion',c:'Women',p:2999,m:5999,r:4.9,rc:310,e:'🥻',g:'g8',d:'Handloom soft silk with zari border + unstitched blouse.',t:'4 days',s:'Velvet Vogue',u:'1 pc',badge:'Premium'},
+/* ---------------- ELECTRONICS ---------------- */
+{id:'e1',n:'Noise-Cancelling Headphones',v:'electronics',c:'Audio',p:4999,m:9999,r:4.7,rc:2310,e:'🎧',g:'g3',d:'40h battery, ENC mic, Bluetooth 5.4, foldable. 1-yr warranty.',t:'2 days',s:'VoltEdge',u:'1 pc',badge:'Bestseller'},
+{id:'e2',n:'True Wireless Earbuds Pro',v:'electronics',c:'Audio',p:2499,m:5999,r:4.5,rc:4120,e:'🎵',g:'g5',d:'13mm drivers, 45ms low-latency gaming mode, 50h case battery.',t:'2 days',s:'VoltEdge',u:'1 pc'},
+{id:'e3',n:'Smartphone 5G (8+128 GB)',v:'electronics',c:'Mobiles',p:18999,m:24999,r:4.6,rc:1890,e:'📱',g:'g7',d:'120Hz AMOLED, 50MP OIS camera, 5000mAh, 67W fast charge.',t:'2 days',s:'VoltEdge',u:'1 pc',badge:'Trending'},
+{id:'e4',n:'Ultrabook Laptop 14" (16/512)',v:'electronics',c:'Laptops',p:58990,m:74990,r:4.8,rc:640,e:'💻',g:'g3',d:'Latest-gen chip, 1.2kg metal body, backlit KB, 18h battery.',t:'3 days',s:'VoltEdge',u:'1 pc'},
+{id:'e5',n:'Smartwatch AMOLED + BT Call',v:'electronics',c:'Wearables',p:2999,m:7999,r:4.4,rc:2760,e:'⌚',g:'g5',d:'1.85" AMOLED, SpO2, 100+ sport modes, 10-day battery.',t:'2 days',s:'VoltEdge',u:'1 pc'},
+{id:'e6',n:'Mirrorless Camera 24MP',v:'electronics',c:'Cameras',p:52990,m:64990,r:4.9,rc:210,e:'📷',g:'g6',d:'24MP sensor, 4K60 video, kit lens 15-45mm, Wi-Fi transfer.',t:'4 days',s:'PixelPro',u:'1 pc',badge:'Premium'},
+{id:'e7',n:'Air Fryer 5L Digital',v:'electronics',c:'Home Appliances',p:5999,m:9999,r:4.5,rc:1120,e:'🍳',g:'g6',d:'8 presets, 360° rapid air, dishwasher-safe basket, 2-yr warranty.',t:'2 days',s:'HomeVolt',u:'1 pc'},
+{id:'e8',n:'Mechanical RGB Keyboard',v:'electronics',c:'Gaming',p:3499,m:5999,r:4.6,rc:890,e:'⌨️',g:'g5',d:'Hot-swap switches, PBT keycaps, tri-mode connect.',t:'2 days',s:'GameZone',u:'1 pc'},
+{id:'e9',n:'Portable Bluetooth Speaker',v:'electronics',c:'Audio',p:1999,m:3999,r:4.5,rc:1540,e:'🔊',g:'g7',d:'30W stereo, IPX7, 24h playtime, TWS pairing.',t:'2 days',s:'VoltEdge',u:'1 pc'},
+{id:'e10',n:'Robot Vacuum + Mop',v:'electronics',c:'Home Appliances',p:15999,m:24999,r:4.6,rc:470,e:'🤖',g:'g3',d:'LiDAR mapping, 4000Pa, app + voice control, auto-recharge.',t:'3 days',s:'HomeVolt',u:'1 pc'},
+/* ---------------- PHARMACY ---------------- */
+{id:'p1',n:'Vitamin C + Zinc (60 tabs)',v:'pharmacy',c:'Vitamins',p:349,m:499,r:4.6,rc:980,e:'🍊',g:'g1',d:'Daily immunity support. Vegetarian, lab-tested.',t:'Same day',s:'MediTrust',u:'60 tabs'},
+{id:'p2',n:'Ashwagandha Capsules (90)',v:'pharmacy',c:'Ayurveda',p:449,m:649,r:4.5,rc:720,e:'🌿',g:'g2',d:'KSM-grade extract for stress, sleep & strength.',t:'Same day',s:'MediTrust',u:'90 caps'},
+{id:'p3',n:'Digital Thermometer Flex',v:'pharmacy',c:'Devices',p:199,m:349,r:4.4,rc:610,e:'🌡️',g:'g7',d:'10-sec fast reading, waterproof tip, fever alarm.',t:'Same day',s:'MediTrust',u:'1 pc'},
+{id:'p4',n:'BP Monitor Automatic',v:'pharmacy',c:'Devices',p:1899,m:2999,r:4.6,rc:430,e:'❤️‍🩹',g:'g3',d:'Clinically validated, one-touch, memory for 2 users.',t:'2 days',s:'MediTrust',u:'1 pc'},
+{id:'p5',n:'Protein Powder Vanilla (1 kg)',v:'pharmacy',c:'Vitamins',p:1899,m:2499,r:4.5,rc:1340,e:'🥤',g:'g6',d:'24g protein/serving, 5.5g BCAA, no added sugar.',t:'Same day',s:'FitFuel',u:'1 kg',badge:'Bestseller'},
+{id:'p6',n:'First-Aid Kit (120 pc)',v:'pharmacy',c:'First Aid',p:799,m:1299,r:4.7,rc:380,e:'🩹',g:'g4',d:'Complete home + travel kit in waterproof pouch.',t:'Same day',s:'MediTrust',u:'120 pc'},
+{id:'p7',n:'Baby Lotion Gentle (400 ml)',v:'pharmacy',c:'Baby & Mother',p:329,m:429,r:4.8,rc:540,e:'🧴',g:'g8',d:'Paediatrician-tested, paraben-free, 24h moisture.',t:'Same day',s:'Baby Bliss',u:'400 ml'},
+{id:'p8',n:'Hand Sanitizer 70% (5 L)',v:'pharmacy',c:'Personal Care',p:649,m:999,r:4.3,rc:290,e:'🧼',g:'g7',d:'WHO-formula gel, refill can for home & office.',t:'Same day',s:'MediTrust',u:'5 L'},
+/* ---------------- HOME ---------------- */
+{id:'h1',n:'Nonstick Cookware Set (5 pc)',v:'home',c:'Kitchen',p:2499,m:4999,r:4.6,rc:760,e:'🍳',g:'g6',d:'Granite-coated, induction-ready, cool-touch handles.',t:'2 days',s:'KitchenKing',u:'5 pc',badge:'Bestseller'},
+{id:'h2',n:'Ceramic Planter Trio',v:'home',c:'Decor',p:899,m:1499,r:4.5,rc:420,e:'🪴',g:'g2',d:'Hand-glazed planters in 3 sizes + drainage trays.',t:'3 days',s:'Nest & Nook',u:'3 pc'},
+{id:'h3',n:'Memory Foam Pillows (2)',v:'home',c:'Furniture',p:1199,m:2199,r:4.4,rc:880,e:'🛏️',g:'g7',d:'Ergonomic contour pillows with bamboo covers.',t:'2 days',s:'Nest & Nook',u:'2 pc'},
+{id:'h4',n:'LED String Lights 20m',v:'home',c:'Lighting',p:499,m:999,r:4.5,rc:1130,e:'💡',g:'g1',d:'Warm-white copper wire, 8 modes, USB + battery.',t:'2 days',s:'GlowKart',u:'20 m'},
+{id:'h5',n:'Vacuum Storage Bags (6)',v:'home',c:'Storage',p:649,m:1099,r:4.3,rc:540,e:'🧳',g:'g5',d:'Jumbo space-savers with pump. 80% more space.',t:'2 days',s:'Nest & Nook',u:'6 pc'},
+{id:'h6',n:'Spin Mop + Bucket Set',v:'home',c:'Cleaning',p:1099,m:1999,r:4.4,rc:970,e:'🧽',g:'g7',d:'360° spin, 2 microfiber heads, splash-guard bucket.',t:'2 days',s:'KitchenKing',u:'1 set'},
+{id:'h7',n:'Scented Candle Gift Set (4)',v:'home',c:'Decor',p:799,m:1399,r:4.7,rc:610,e:'🕯️',g:'g4',d:'Soy candles: vanilla, coffee, lavender & sandalwood.',t:'2 days',s:'GlowKart',u:'4 pc'},
+{id:'h8',n:'Insulated Steel Bottle 1L',v:'home',c:'Kitchen',p:699,m:1299,r:4.6,rc:1420,e:'🍶',g:'g3',d:'24h hot / 24h cold, leakproof, matte finish.',t:'2 days',s:'KitchenKing',u:'1 L'},
+/* ---------------- BEAUTY ---------------- */
+{id:'b1',n:'Vitamin C Face Serum 30ml',v:'beauty',c:'Skincare',p:549,m:899,r:4.6,rc:1870,e:'✨',g:'g4',d:'15% ethylated Vit-C + hyaluronic acid. Glass skin in 4 weeks.',t:'2 days',s:'GlowLab',u:'30 ml',badge:'Trending'},
+{id:'b2',n:'Matte Lipstick Set (6)',v:'beauty',c:'Makeup',p:799,m:1499,r:4.5,rc:940,e:'💄',g:'g4',d:'6 bestseller shades, 8-hr stay, vitamin-E enriched.',t:'2 days',s:'GlamBox',u:'6 pc'},
+{id:'b3',n:'Argan Hair Oil 100ml',v:'beauty',c:'Haircare',p:449,m:699,r:4.7,rc:760,e:'💇',g:'g6',d:'Cold-pressed Moroccan argan. Frizz-free shine.',t:'2 days',s:'GlowLab',u:'100 ml'},
+{id:'b4',n:'Eau De Parfum 100ml — Oud',v:'beauty',c:'Fragrance',p:1499,m:2499,r:4.8,rc:520,e:'🌸',g:'g8',d:'Long-lasting 8-10h oud + amber. Unisex luxury.',t:'3 days',s:'Maison Aroma',u:'100 ml',badge:'Premium'},
+{id:'b5',n:'K-Beauty Sheet Mask (10)',v:'beauty',c:'Skincare',p:499,m:899,r:4.4,rc:1120,e:'🧖',g:'g8',d:'10 hydrating masks: aloe, snail, rice & green tea.',t:'2 days',s:'GlowLab',u:'10 pc'},
+{id:'b6',n:'Beard Grooming Kit',v:'beauty',c:'Men Grooming',p:899,m:1599,r:4.5,rc:640,e:'🧔',g:'g6',d:'Oil, balm, wash, brush & comb in travel pouch.',t:'2 days',s:'Mane & Co',u:'5 pc'},
+{id:'b7',n:'Body Butter Vanilla (200g)',v:'beauty',c:'Bath & Body',p:399,m:649,r:4.6,rc:480,e:'🧁',g:'g1',d:'Whipped shea butter, 48h moisture, non-greasy.',t:'2 days',s:'GlowLab',u:'200 g'},
+{id:'b8',n:'Waterproof Kajal Duo',v:'beauty',c:'Makeup',p:299,m:499,r:4.3,rc:830,e:'👁️',g:'g5',d:'Smudge-proof 24h kajal + sharpener. Jet black.',t:'2 days',s:'GlamBox',u:'2 pc'},
+/* ---------------- SERVICES ---------------- */
+{id:'s1',n:'Full Home Deep Cleaning',v:'services',c:'Cleaning',p:2499,m:3999,r:4.7,rc:1150,e:'🧹',g:'g2',d:'3BHK deep clean: kitchen, bathrooms, sofa & carpet. 4 pros, 4 hrs.',t:'Slot',s:'FixIt Pro',u:'3 BHK'},
+{id:'s2',n:'AC Service + Gas Check',v:'services',c:'Repair',p:799,m:1299,r:4.6,rc:890,e:'❄️',g:'g7',d:'Foam-jet clean, filter wash, cooling check. Split/window.',t:'Slot',s:'FixIt Pro',u:'1 AC'},
+{id:'s3',n:'Salon at Home — Women',v:'services',c:'Salon',p:1299,m:2199,r:4.8,rc:2040,e:'💅',g:'g4',d:'Waxing + facial + mani-pedi combo by senior beautician.',t:'Slot',s:'GlamHome',u:'90 min',badge:'Bestseller'},
+{id:'s4',n:'Plumber Visit + Repair',v:'services',c:'Plumbing',p:299,m:499,r:4.5,rc:670,e:'🔧',g:'g3',d:'Tap, flush & leakage repair. Upfront pricing, 30-day warranty.',t:'90 min',s:'FixIt Pro',u:'1 visit'},
+{id:'s5',n:'Electrician Safety Check',v:'services',c:'Electrician',p:349,m:599,r:4.6,rc:540,e:'💡',g:'g1',d:'Full-home wiring audit + 5 minor fixes. Certified pros.',t:'90 min',s:'FixIt Pro',u:'1 visit'},
+{id:'s6',n:'1BHK Painting (Asian)',v:'services',c:'Painting',p:14999,m:21999,r:4.7,rc:210,e:'🎨',g:'g8',d:'Premium emulsion, furniture masking, 2 coats, 1-day completion.',t:'Slot',s:'ColorCasa',u:'1 BHK'},
+];
+
+const BANNERS = [
+  { e:'🍕', t:'50% OFF First Food Order', s:'Hot & fresh in 30 minutes', bg:'linear-gradient(135deg,#f97316,#dc2626)', code:'FOOD50' },
+  { e:'🥬', t:'Farm-Fresh Groceries', s:'Flat ₹100 off above ₹499', bg:'linear-gradient(135deg,#16a34a,#065f46)', code:'FRESH100' },
+  { e:'🎧', t:'Electronics Fest', s:'Up to 60% off + no-cost EMI', bg:'linear-gradient(135deg,#4f46e5,#7c3aed)', code:'TECH10' },
+  { e:'💄', t:'Beauty Bonanza', s:'Min 40% off top brands', bg:'linear-gradient(135deg,#ec4899,#8b5cf6)', code:'GLOW20' },
+];
+
+const COUPONS = [
+  { code:'WELCOME20', e:'🎉', t:'20% off everything', d:'Up to ₹200 off on orders above ₹499. New users.', type:'pct', val:20, cap:200, min:499 },
+  { code:'FREEDEL', e:'🛵', t:'Free delivery', d:'Zero delivery fee on any order above ₹199.', type:'freedel', val:0, min:199 },
+  { code:'FOOD50', e:'🍕', t:'50% off food', d:'Up to ₹150 off on food orders above ₹249.', type:'pct', val:50, cap:150, min:249, vert:'food' },
+  { code:'FRESH100', e:'🥬', t:'₹100 off groceries', d:'Flat ₹100 off grocery orders above ₹499.', type:'flat', val:100, min:499, vert:'grocery' },
+  { code:'TECH10', e:'🎧', t:'10% off electronics', d:'Up to ₹1500 off electronics above ₹4999.', type:'pct', val:10, cap:1500, min:4999, vert:'electronics' },
+  { code:'GLOW20', e:'💄', t:'20% off beauty', d:'Up to ₹300 off beauty above ₹799.', type:'flat_pct', val:20, cap:300, min:799, vert:'beauty' },
+];
+
+const CITIES = [
+  { n:'New York', pin:'10001', e:'🗽' }, { n:'Mumbai', pin:'400001', e:'🌉' },
+  { n:'Delhi', pin:'110001', e:'🕌' }, { n:'Bengaluru', pin:'560001', e:'🌳' },
+  { n:'Los Angeles', pin:'90001', e:'🌴' }, { n:'London', pin:'E1 6AN', e:'🎡' },
+  { n:'Chennai', pin:'600001', e:'🏖️' }, { n:'Hyderabad', pin:'500001', e:'🍲' },
+  { n:'Chicago', pin:'60601', e:'🌆' }, { n:'Dubai', pin:'00000', e:'🏙️' },
+  { n:'Pune', pin:'411001', e:'⛰️' }, { n:'Kolkata', pin:'700001', e:'🚋' },
+];
+
+const REVIEWS = [
+  { n:'Priya S.', r:5, t:'Super fresh and arrived earlier than promised. Packaging was excellent!' },
+  { n:'Rahul M.', r:4, t:'Great quality for the price. Will definitely order again.' },
+  { n:'Ananya K.', r:5, t:'Exactly as described. Delivery partner was polite and quick.' },
+];
+
+const TESTIMONIALS = [
+  { n:'Sneha R.', c:'Mumbai', e:'👩', s:5, t:'Ordered biryani, groceries AND a birthday gift in one cart. This app replaced 4 apps on my phone!' },
+  { n:'Arjun P.', c:'Bengaluru', e:'🧑', s:5, t:'AC repair booked at 9am, technician arrived by 11. Plus my headphones arrived the same evening. Insane.' },
+  { n:'Kavya D.', c:'Delhi', e:'👩‍🦰', s:4, t:'Flash deals are genuinely good — got my air fryer 40% off. Delivery tracking is the smoothest I have used.' },
+];
+
+const THEME_PRESETS = [
+  { n:'Tomato', p:'#e8433f', s:'#8b1e3f' }, { n:'Violet', p:'#7c3aed', s:'#4c1d95' },
+  { n:'Ocean', p:'#0284c7', s:'#0c4a6e' }, { n:'Forest', p:'#16a34a', s:'#14532d' },
+  { n:'Sunset', p:'#f97316', s:'#9a3412' }, { n:'Rose', p:'#e11d48', s:'#881337' },
+  { n:'Dark Gold', p:'#b45309', s:'#451a03' }, { n:'Teal', p:'#0d9488', s:'#134e4a' },
+];
+
+const FONT_OPTIONS = [
+  { n:'Jakarta (Default)', v:"'Plus Jakarta Sans','Inter',system-ui,sans-serif" },
+  { n:'Inter', v:"'Inter',system-ui,sans-serif" },
+  { n:'Sora', v:"'Sora',system-ui,sans-serif" },
+  { n:'DM Sans', v:"'DM Sans',system-ui,sans-serif" },
+  { n:'System', v:"system-ui,-apple-system,sans-serif" },
+];
+
+const DEFAULT_SETTINGS = {
+  storeName:'AnyWhere', storeName2:'Anything', tagline:'Food • Grocery • Shopping • More', logoEmoji:'🌍',
+  announce:'🎉 Grand Sale — up to 60% OFF + extra 20% with code WELCOME20', showAnnounce:true,
+  heroBadge:'⚡ Delivery in 30 mins — Anywhere', heroTitle:'Anything you crave, delivered Anywhere.', heroSub:'Food, groceries, fashion, electronics, medicines & home services — one cart, one checkout, one super-app.',
+  heroCta1:'Order Food Now', heroCta2:'Explore Everything',
+  sections:{ hero:true, verticals:true, promos:true, flash:true, best:true, collections:true, services:true, cities:true, testimonials:true, recent:true, footer:true },
+  theme:{ mode:'light', primary:'#e8433f', secondary:'#8b1e3f', font:"'Plus Jakarta Sans','Inter',system-ui,sans-serif", radius:16, cardStyle:'modern' },
+  commerce:{ currency:'₹', deliveryFee:29, freeAbove:499, taxPct:5, showRatings:true, showVeg:true, showMrp:true, showTime:true },
+};

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AnyWhere Anything — Food, Grocery, Shopping & More</title>
+<meta name="description" content="AnyWhere Anything: one super-app for food delivery, groceries, fashion, electronics, pharmacy, home essentials & services. Fully customisable." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>" />
+</head>
+<body>
+<div id="announce" class="announce"></div>
+
+<!-- ============ HEADER ============ -->
+<header class="header" id="header">
+  <div class="header-inner">
+    <button class="icon-btn hamburger" id="btnMenu" aria-label="Menu">☰</button>
+    <a class="logo" href="#" id="logoHome">
+      <span class="logo-mark" id="logoMark">🌍</span>
+      <span class="logo-text"><b id="storeName">AnyWhere</b><i id="storeName2">Anything</i>
+      <small id="storeTagline">Food • Grocery • Shopping • More</small></span>
+    </a>
+    <button class="location-pill" id="btnLocation">
+      <span class="loc-icon">📍</span>
+      <span class="loc-text"><small>Deliver to</small><b id="locLabel">New York 10001</b></span>
+      <span class="loc-chev">▾</span>
+    </button>
+    <div class="search-wrap">
+      <span class="search-ico">🔍</span>
+      <input id="searchInput" type="text" placeholder='Search "pizza", "milk", "headphones"…' autocomplete="off" />
+      <button class="search-btn" id="btnSearch">Search</button>
+      <div class="search-suggest" id="searchSuggest"></div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn theme-btn" id="btnTheme" title="Toggle theme">🌙</button>
+      <button class="icon-btn" id="btnOffers" title="Offers">🏷️<span class="dot-badge"></span></button>
+      <button class="icon-btn" id="btnWishlist" title="Wishlist">❤️<span class="count-badge hidden" id="wishCount">0</span></button>
+      <button class="icon-btn" id="btnUser" title="Account">👤</button>
+      <button class="cart-btn" id="btnCart">🛒 <span>Cart</span> <b class="count-badge" id="cartCount">0</b></button>
+    </div>
+  </div>
+  <div class="mobile-search">
+    <span>🔍</span><input id="searchInputM" type="text" placeholder="Search anything…" autocomplete="off" />
+  </div>
+  <nav class="cat-nav" id="catNav"></nav>
+</header>
+
+<!-- ============ SIDE MENU (mobile) ============ -->
+<div class="overlay" id="overlay"></div>
+<aside class="side-menu" id="sideMenu">
+  <div class="side-head"><span id="sideLogo">🌍 AnyWhere Anything</span><button class="icon-btn" id="btnCloseMenu">✕</button></div>
+  <div class="side-loc"><button id="btnLocation2">📍 <b id="locLabel2">New York 10001</b> ▾</button></div>
+  <div class="side-links" id="sideLinks"></div>
+  <div class="side-foot">
+    <button class="btn secondary full" id="btnCustomize2">🎨 Customize Store</button>
+    <button class="btn ghost full" id="btnLogin2">👤 Login / Sign up</button>
+  </div>
+</aside>
+
+<!-- ============ MAIN PAGE ============ -->
+<main id="page" class="page"></main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer" id="footer"></footer>
+
+<!-- ============ MOBILE BOTTOM NAV ============ -->
+<nav class="bottom-nav">
+  <button data-nav="home" class="active">🏠<small>Home</small></button>
+  <button data-nav="shop">🧭<small>Explore</small></button>
+  <button data-nav="offers">🏷️<small>Offers</small></button>
+  <button data-nav="orders">📦<small>Orders</small></button>
+  <button data-nav="cart">🛒<small>Cart</small></button>
+</nav>
+
+<!-- ============ FLOATING CUSTOMIZE ============ -->
+<button class="fab-customize" id="btnCustomize" title="Customize everything">🎨<span>Customize</span></button>
+
+<!-- ============ CART DRAWER ============ -->
+<div class="drawer" id="cartDrawer">
+  <div class="drawer-head"><h3>🛒 Your Cart <span id="cartHeadCount"></span></h3><button class="icon-btn" data-close="cartDrawer">✕</button></div>
+  <div class="drawer-free" id="cartFreeBar"></div>
+  <div class="drawer-body" id="cartItems"></div>
+  <div class="drawer-foot" id="cartFoot"></div>
+</div>
+
+<!-- ============ WISHLIST DRAWER ============ -->
+<div class="drawer" id="wishDrawer">
+  <div class="drawer-head"><h3>❤️ Wishlist</h3><button class="icon-btn" data-close="wishDrawer">✕</button></div>
+  <div class="drawer-body" id="wishItems"></div>
+</div>
+
+<!-- ============ CUSTOMIZER DRAWER ============ -->
+<div class="drawer wide" id="customDrawer">
+  <div class="drawer-head gradient"><h3>🎨 Store Customizer</h3><button class="icon-btn" data-close="customDrawer">✕</button></div>
+  <div class="custom-tabs" id="customTabs"></div>
+  <div class="drawer-body" id="customBody"></div>
+  <div class="drawer-foot custom-foot">
+    <button class="btn ghost" id="btnExport">⬇ Export</button>
+    <button class="btn ghost" id="btnImport">⬆ Import</button>
+    <input type="file" id="importFile" accept=".json" hidden />
+    <button class="btn danger-ghost" id="btnResetCustom">Reset all</button>
+  </div>
+</div>
+
+<!-- ============ PRODUCT MODAL ============ -->
+<div class="modal-wrap" id="productModal"><div class="modal product-modal" id="productModalBox"></div></div>
+
+<!-- ============ LOCATION MODAL ============ -->
+<div class="modal-wrap" id="locationModal">
+  <div class="modal">
+    <div class="modal-head"><h3>📍 Choose delivery location</h3><button class="icon-btn" data-close-modal="locationModal">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Search city or pincode</label><input id="locSearch" placeholder="e.g. Mumbai, 400001…" /></div>
+      <div class="detect-row"><button class="btn secondary full" id="btnDetect">🎯 Use my current location</button></div>
+      <h4 class="mt">Popular cities</h4>
+      <div class="city-grid" id="cityGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AUTH MODAL ============ -->
+<div class="modal-wrap" id="authModal">
+  <div class="modal small">
+    <div class="modal-head"><h3>👋 Welcome</h3><button class="icon-btn" data-close-modal="authModal">✕</button></div>
+    <div class="modal-body">
+      <div class="auth-tabs"><button class="active" id="tabLogin">Login</button><button id="tabSignup">Sign up</button></div>
+      <div id="authForm"></div>
+      <p class="muted small center">Demo auth — stored only in your browser.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHECKOUT MODAL ============ -->
+<div class="modal-wrap" id="checkoutModal"><div class="modal large" id="checkoutBox"></div></div>
+
+<!-- ============ TRACK MODAL ============ -->
+<div class="modal-wrap" id="trackModal"><div class="modal" id="trackBox"></div></div>
+
+<!-- ============ PRODUCT MANAGER MODAL ============ -->
+<div class="modal-wrap" id="pmModal"><div class="modal large" id="pmBox"></div></div>
+
+<!-- ============ TOASTS ============ -->
+<div class="toasts" id="toasts"></div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
