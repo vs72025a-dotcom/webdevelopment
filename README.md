@@ -42,14 +42,23 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **☁️ Firebase cloud sync** — optional real backend: connect a free Realtime Database URL and orders/products/settings sync across devices (see below)
 
+**🎯 Promo banner manager** — add/edit/delete homepage banners (emoji, gradient, coupon, target category); banner clicks deep-link + auto-apply coupons (Customize → Promos)
+
+**🎙️ Voice search** — mic button in the header (Chrome/Edge): speak to search, auto-navigates on matches
+
+**💳 Razorpay payments** — paste a Razorpay Key ID (Customize → Commerce) and a real Razorpay checkout option appears alongside UPI/cards/COD; hidden when no key is set
+
+**📅 Order calendar** — My Orders has List + Calendar views: placed/delivery/service dates as dots, click any day for that day's orders
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs
 - **Theme** — light/dark/auto, 8 presets + custom pickers, 5 fonts, corner radius, card style
 - **Homepage** — toggle 11 sections on/off
-- **Commerce** — currency, delivery fee, free-delivery threshold, tax %, card badges
+- **Commerce** — currency, delivery fee, free-delivery threshold, tax %, card badges, Razorpay key
+- **Promos** — homepage banner manager with live preview
 - **Products** — add / edit / delete any product (vertical, price, MRP, emoji, gradient…)
-- **Data** — export/import full backup JSON, seed sample orders, one-click reset
+- **Data** — export/import full backup JSON, seed sample orders, one-click reset, Firebase cloud sync
 
 Everything persists in `localStorage`. Fully responsive with a mobile bottom-nav + side menu.
 
@@ -70,8 +79,9 @@ Or open `index.html` directly in a browser (all features work offline except Goo
 ```
 index.html      → app shell, drawers, modals
 styles.css      → design system (CSS variables drive the customizer)
-js/data.js      → verticals, 70+ products, banners, coupons, cities
+js/data.js      → verticals, 70+ products, banners, coupons, cities, EN+HI strings
 js/app.js       → state, rendering, cart, checkout, tracking, customizer
+js/cloud.js     → Firebase Realtime Database sync layer (offline-first)
 ```
 
 ## 🧪 Try this

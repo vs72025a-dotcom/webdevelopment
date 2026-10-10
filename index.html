@@ -31,7 +31,7 @@
     <div class="search-wrap">
       <span class="search-ico">🔍</span>
       <input id="searchInput" type="text" placeholder='Search "pizza", "milk", "headphones"…' autocomplete="off" />
-      <button class="search-btn" id="btnSearch">Search</button>
+      <button class="mic-btn" id="btnMic" title="Voice search">🎤</button><button class="search-btn" id="btnSearch">Search</button>
       <div class="search-suggest" id="searchSuggest"></div>
     </div>
     <div class="header-actions">
@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="mobile-search">
-    <span>🔍</span><input id="searchInputM" type="text" placeholder="Search anything…" autocomplete="off" />
+    <span>🔍</span><input id="searchInputM" type="text" placeholder="Search anything…" autocomplete="off" /><button class="mic-btn" id="btnMicM" title="Voice search">🎤</button>
   </div>
   <nav class="cat-nav" id="catNav"></nav>
 </header>
@@ -152,6 +152,9 @@
 
 <!-- ============ RIDER RATING MODAL ============ -->
 <div class="modal-wrap" id="rateModal"><div class="modal small" id="rateBox"></div></div>
+
+<!-- ============ PROMO MODAL ============ -->
+<div class="modal-wrap" id="promoModal"><div class="modal small" id="promoBox"></div></div>
 
 <!-- ============ PRODUCT MANAGER MODAL ============ -->
 <div class="modal-wrap" id="pmModal"><div class="modal large" id="pmBox"></div></div>

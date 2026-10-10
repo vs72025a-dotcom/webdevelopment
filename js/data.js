@@ -218,6 +218,10 @@ en:{
   giftTitle:'Make it a gift', giftWrap:'Gift wrap + message', giftOcc:'Occasion', giftMsg:'Gift message', giftMsgPh:'Write your message…', giftHide:'Hide prices (gift receipt)', giftFee:'Gift wrap',
   expFee:'Express delivery',
   cloudTitle:'Cloud sync (Firebase)', cloudDesc:'Sync orders, products & settings across devices with a free Firebase database.', cloudUrl:'Database URL', cloudConnect:'Connect', cloudOff:'Disconnect', cloudOn:'Connected', cloudLocal:'Local only', cloudSync:'Sync now', cloudLast:'Last synced',
+  promoTitle:'Promo banners', promoAdd:'Add banner', promoEmpty:'No banners — add your first!', promoEmoji:'Emoji', promoSubT:'Subtitle', promoColor:'Gradient', promoCode:'Coupon code', promoTarget:'Opens category', promoSave:'Save banner', promoNone:'No coupon',
+  voiceListen:'Listening… speak now', voiceNone:'Voice search not supported here', voiceNoHit:'Did not catch that — try again',
+  calList:'List', calCal:'Calendar', calPlaced:'Ordered', calDelivery:'Delivery', calService:'Service visit', calNone:'Nothing scheduled this day', calToday:'Today',
+  rzpTitle:'Online payments (Razorpay)', rzpDesc:'Accept UPI, cards & netbanking via your own Razorpay key. Leave empty to hide.', rzpKey:'Razorpay Key ID', rzpSave:'Save key', rzpRemove:'Remove', rzpPay:'Razorpay — UPI, cards & more', rzpLoad:'Loading Razorpay…', rzpWin:'Complete payment in the Razorpay window', rzpFail:'Payment failed or cancelled',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -257,6 +261,10 @@ hi:{
   giftTitle:'गिफ्ट बनाएं', giftWrap:'गिफ्ट रैप + मैसेज', giftOcc:'अवसर', giftMsg:'गिफ्ट मैसेज', giftMsgPh:'अपना मैसेज लिखें…', giftHide:'कीमतें छुपाएं (गिफ्ट रसीद)', giftFee:'गिफ्ट रैप',
   expFee:'एक्सप्रेस डिलीवरी',
   cloudTitle:'क्लाउड सिंक (Firebase)', cloudDesc:'फ्री Firebase डेटाबेस से ऑर्डर, प्रोडक्ट व सेटिंग सभी डिवाइस पर सिंक करें।', cloudUrl:'डेटाबेस URL', cloudConnect:'कनेक्ट', cloudOff:'हटाएं', cloudOn:'जुड़ा', cloudLocal:'सिर्फ लोकल', cloudSync:'अभी सिंक', cloudLast:'आखिरी सिंक',
+  promoTitle:'प्रोमो बैनर', promoAdd:'बैनर जोड़ें', promoEmpty:'कोई बैनर नहीं — पहला जोड़ें!', promoEmoji:'इमोजी', promoSubT:'सबटाइटल', promoColor:'ग्रेडिएंट', promoCode:'कूपन कोड', promoTarget:'कैटेगरी खोलें', promoSave:'बैनर सेव करें', promoNone:'कोई कूपन नहीं',
+  voiceListen:'सुन रहे हैं… बोलें', voiceNone:'यहां वॉइस सर्च नहीं है', voiceNoHit:'समझ नहीं आया — फिर बोलें',
+  calList:'लिस्ट', calCal:'कैलेंडर', calPlaced:'ऑर्डर', calDelivery:'डिलीवरी', calService:'सर्विस विज़िट', calNone:'इस दिन कुछ नहीं', calToday:'आज',
+  rzpTitle:'ऑनलाइन पेमेंट (Razorpay)', rzpDesc:'अपनी Razorpay key से UPI, कार्ड व नेटबैंकिंग लें। खाली रखें तो छिपा रहेगा।', rzpKey:'Razorpay Key ID', rzpSave:'की सेव करें', rzpRemove:'हटाएं', rzpPay:'Razorpay — UPI, कार्ड व और', rzpLoad:'Razorpay खुल रहा…', rzpWin:'Razorpay विंडो में पेमेंट करें', rzpFail:'पेमेंट असफल या रद्द',
 }};
 
 const RETURN_REASONS = [

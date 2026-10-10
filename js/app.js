@@ -1,6 +1,7 @@
 /* ============================================================
    AnyWhere Anything — App Engine
    State • i18n • Slots • Gifts • Ratings • Cloud • UPI • Map
+   Promos • Voice • Calendar • Razorpay
    ============================================================ */
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
@@ -39,11 +40,14 @@ let notifs = LS.get('aw_notifs_v1', []);
 let pushOn = LS.get('aw_push_v1', false);
 let gift = Object.assign({ on:false, msg:'', occasion:0, hide:false }, LS.get('aw_gift_v1', {}));
 let riderRatings = LS.get('aw_rider_ratings_v1', {});
+let customBanners = LS.get('aw_banners_v1', null);
+let rzpKey = LS.get('aw_rzp_v1', '');
 
 let route = { page:'home', vertical:'all', category:'all', query:'', sort:'pop' };
 let filters = { cats:new Set(), maxPrice:100000, minRating:0, vegOnly:false };
 let coState = { step:0, addr:{}, pay:'upi', upi:{ id:'', verified:false, name:'', app:'GPay' },
-  addrId:null, newAddr:false, slot:{ food:'asap', speed:'standard', service:'' } };
+  addrId:null, newAddr:false, slot:{ food:'asap', speed:'standard', service:'', serviceDate:'' } };
+let ordView = 'list', calCursor = null, calDay = null;
 
 const saveSettings = () => LS.set('aw_settings_v1', settings);
 const saveCart = () => LS.set('aw_cart_v1', cart);
@@ -52,6 +56,7 @@ const saveOrders = () => LS.set('aw_orders_v1', orders);
 const saveAddrs = () => LS.set('aw_addrs_v1', addrs);
 const saveNotifs = () => LS.set('aw_notifs_v1', notifs);
 const saveGift = () => LS.set('aw_gift_v1', gift);
+const saveBanners = () => LS.set('aw_banners_v1', customBanners);
 
 /* ---------------- Helpers ---------------- */
 const t = k => (I18N[settings.lang] && I18N[settings.lang][k]) || I18N.en[k] || k;
@@ -136,6 +141,35 @@ function drawUPIQR(canvas, seedStr){
   }
 }
 
+/* ---------------- Promo banners ---------------- */
+const PROMO_GRADIENTS = [
+  'linear-gradient(135deg,#f97316,#dc2626)',
+  'linear-gradient(135deg,#16a34a,#065f46)',
+  'linear-gradient(135deg,#4f46e5,#7c3aed)',
+  'linear-gradient(135deg,#ec4899,#8b5cf6)',
+  'linear-gradient(135deg,#0284c7,#0c4a6e)',
+  'linear-gradient(135deg,#b45309,#451a03)',
+];
+function getBanners(){
+  if(customBanners) return customBanners;
+  return BANNERS.map((b,i)=>Object.assign({ id:'d'+i, vert:'all' }, b));
+}
+function initCustomBanners(){
+  if(!customBanners) customBanners = BANNERS.map((b,i)=>Object.assign({ id:'d'+i, vert:'all' }, JSON.parse(JSON.stringify(b))));
+}
+function bannerGo(i){
+  const b = getBanners()[i]; if(!b) return;
+  const goVert = () => {
+    route = { page:'shop', vertical:b.vert, category:'all', query:'', sort:'pop' };
+    filters = { cats:new Set(), maxPrice:100000, minRating:0, vegOnly:false };
+    renderAll(); window.scrollTo({top:0,behavior:'smooth'});
+  };
+  if(b.code && b.vert && b.vert !== 'all'){ applyCoupon(b.code, true); goVert(); }
+  else if(b.code){ applyCoupon(b.code, false); }
+  else if(b.vert && b.vert !== 'all'){ goVert(); }
+  else toast(b.t, b.e || '🎁');
+}
+
 /* ---------------- Delivery slot builders ---------------- */
 const DAY_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAY_HI = ['रवि','सोम','मंगल','बुध','गुरु','शुक्र','शनि'];
@@ -154,9 +188,10 @@ function serviceSlots(){
   const out = [], now = new Date();
   for(let d=0; d<3; d++){
     const dt = new Date(now.getTime()+d*864e5);
+    const iso = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
     const dn = (HI()?DAY_HI:DAY_EN)[dt.getDay()];
     const dayL = d===0 ? t('slotToday') : d===1 ? t('slotTomw') : dn;
-    wins.forEach(w=>{ const v = `${dn}, ${w[0]}–${w[1]}`; out.push({ v, l:`${dayL}, ${w[0]}–${w[1]}` }); });
+    wins.forEach(w=>out.push({ v:`${dn}, ${w[0]}–${w[1]}`, l:`${dayL}, ${w[0]}–${w[1]}`, d:iso }));
   }
   return out;
 }
@@ -167,6 +202,28 @@ function slotSummary(o){
   if(o.slot.service) parts.push('🛠️ ' + o.slot.service);
   if(o.slot.speed === 'express') parts.push('⚡ ' + t('slotExp'));
   return parts.join(' • ');
+}
+
+/* ---------------- Calendar helpers ---------------- */
+const isoDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const addDaysISO = (ts, n) => isoDay(new Date(ts).getTime()+n*864e5);
+function expectedDelivery(o){
+  if(o.slot && o.slot.serviceDate) return o.slot.serviceDate;
+  const hasShip = o.items.some(i=>{ const p = getP(i.id); return p && !['food','services'].includes(p.v); });
+  const onlyFood = o.items.every(i=>{ const p = getP(i.id); return p && p.v==='food'; });
+  if(onlyFood) return isoDay(o.placedAt||Date.now());
+  if(o.slot && o.slot.speed==='express') return addDaysISO(o.placedAt||Date.now(), 1);
+  if(hasShip) return addDaysISO(o.placedAt||Date.now(), 3);
+  return isoDay(o.placedAt||Date.now());
+}
+function orderEvents(){
+  const evs = [];
+  orders.forEach(o=>{
+    evs.push({ d:isoDay(o.placedAt||Date.now()), type:'placed', o });
+    const svc = !!(o.slot && o.slot.serviceDate);
+    evs.push({ d:expectedDelivery(o), type:svc?'service':'delivery', o });
+  });
+  return evs;
 }
 
 /* ---------------- Notifications ---------------- */
@@ -378,8 +435,8 @@ function homeHTML(){
   if(S.verticals) h += `<section class="section"><div class="sec-head"><div><h2>${t('secCat')}</h2><p>${t('secCatSub')}</p></div></div>
     <div class="vert-grid">${VERTICALS.map(v=>`<div class="vert-card" data-vert-go="${v.id}"><span class="ve">${v.emoji}</span><b>${esc(vname(v))}</b><small>${v.tag}</small></div>`).join('')}</div></section>`;
 
-  if(S.promos) h += `<section class="section"><div class="banner-row">${BANNERS.map((b,i)=>
-    `<button class="banner" style="background:${b.bg}" data-banner="${i}"><span class="be">${b.e}</span><b>${b.t}</b><small>${b.s}</small><span class="go">GRAB WITH ${b.code} →</span></button>`).join('')}</div></section>`;
+  if(S.promos && getBanners().length) h += `<section class="section"><div class="banner-row">${getBanners().map((b,i)=>
+    `<button class="banner" style="background:${b.bg}" data-banner="${i}"><span class="be">${b.e}</span><b>${esc(b.t)}</b><small>${esc(b.s)}</small><span class="go">${b.code?('🎟️ '+b.code+' →'):t('viewAll')}</span></button>`).join('')}</div></section>`;
 
   if(S.flash) h += `<section class="section"><div class="flash"><div class="flash-head"><h2>⚡ ${t('secFlash')}</h2>
     <div class="timer"><span id="tH">00</span>:<span id="tM">00</span>:<span id="tS">00</span></div>
@@ -485,17 +542,13 @@ function shopHTML(){
    ============================================================ */
 function offersHTML(){
   return `<div class="sec-head" style="margin-top:6px"><div><h2>🏷️ ${t('offTitle')}</h2><p>${t('offSub')}</p></div></div>
-  <div class="promo-strip" style="margin-bottom:18px">${BANNERS.map((b,i)=>`<div class="promo-chip" data-banner="${i}"><span class="pc" style="background:${b.bg}">${b.e}</span><span>${b.t}<br/><small class="muted">${b.code}</small></span></div>`).join('')}</div>
+  <div class="promo-strip" style="margin-bottom:18px">${getBanners().map((b,i)=>`<div class="promo-chip" data-banner="${i}"><span class="pc" style="background:${b.bg}">${b.e}</span><span>${esc(b.t)}<br/><small class="muted">${b.code||''}</small></span></div>`).join('')}</div>
   <div class="coupon-grid">${COUPONS.map(c=>`<div class="coupon"><span class="cc">${c.e}</span><b>${c.t}</b><p>${c.d}</p>
     <div class="code-row"><code>${c.code}</code><button class="btn secondary sm" data-copy="${c.code}">${t('copyBtn')}</button><button class="btn primary sm" data-apply="${c.code}">${activeCoupon===c.code?t('appliedBtn'):t('applyBtn')}</button></div></div>`).join('')}</div>`;
 }
-function ordersHTML(){
-  if(!orders.length) return `<div class="empty" style="padding-top:80px"><div class="big">📦</div><h3>${t('ordEmpty')}</h3><p>${t('ordEmptySub')}</p><button class="btn primary" data-vert-go="all">${t('ordStart')}</button></div>`;
-  const sub = HI() ? `${orders.length} ऑर्डर • लाइव ट्रैकिंग` : `${orders.length} order(s) • live tracking`;
-  return `<div class="sec-head" style="margin-top:6px"><div><h2>📦 ${t('ordTitle')}</h2><p>${sub}</p></div></div>` +
-  [...orders].reverse().map(o=>{
-    const sum = slotSummary(o);
-    return `<div class="order-card"><div class="order-top"><b>#${o.id}</b>
+function orderCardHTML(o){
+  const sum = slotSummary(o);
+  return `<div class="order-card"><div class="order-top"><b>#${o.id}</b>
     <span class="status st-${['placed','preparing','shipped','out','delivered'][o.status]}">${statusName(o.status)}</span></div>
     <div class="order-items">${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join('')}${o.gift?'🎁':''}</div>
     <div class="order-meta"><span>🧾 ${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')}</span><span>💰 ${fmt(o.total)}</span><span>📅 ${o.date}</span><span>📍 ${esc(o.addr.city||location.n)}</span>
@@ -506,7 +559,49 @@ function ordersHTML(){
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn secondary sm" data-track="${o.id}">📍 ${t('ordTrack')}</button><button class="btn ghost sm" data-reorder="${o.id}">🔁 ${t('ordReorder')}</button>
     ${o.status===4 && !o.rating ? `<button class="btn secondary sm" data-rate="${o.id}">⭐ ${t('rateBtn')}</button>` : ''}
     ${o.status===4 && !o.return ? `<button class="btn danger-ghost sm" data-return="${o.id}">↩ ${t('retTitle')}</button>` : ''}</div>
-  </div>`; }).join('');
+  </div>`;
+}
+function calendarHTML(){
+  const now = new Date();
+  if(!calCursor) calCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+  if(!calDay) calDay = isoDay(now.getTime());
+  const y = calCursor.getFullYear(), m = calCursor.getMonth();
+  const monthName = calCursor.toLocaleDateString(HI()?'hi-IN':'en-IN',{ month:'long', year:'numeric' });
+  const first = new Date(y, m, 1).getDay();
+  const dim = new Date(y, m+1, 0).getDate();
+  const byDay = {};
+  orderEvents().forEach(e=>{ (byDay[e.d] = byDay[e.d] || []).push(e); });
+  const todayISO = isoDay(now.getTime());
+  let cells = '';
+  for(let i=0;i<first;i++) cells += `<button class="cal-day" disabled></button>`;
+  for(let d=1; d<=dim; d++){
+    const iso = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const list = (byDay[iso]||[]).slice(0,3);
+    cells += `<button class="cal-day ${iso===todayISO?'today':''} ${iso===calDay?'sel':''}" data-calday="${iso}">${d}<span class="cal-dots">${list.map(e=>`<i class="dot-${e.type}"></i>`).join('')}</span></button>`;
+  }
+  const dows = HI() ? DAY_HI : DAY_EN;
+  const dayEvs = byDay[calDay] || [];
+  const dayLabel = new Date(calDay+'T12:00:00').toLocaleDateString(HI()?'hi-IN':'en-IN',{ weekday:'long', day:'numeric', month:'short' });
+  return `<div class="cal-wrap"><div class="cal-card">
+    <div class="cal-nav"><b>${monthName}</b><div class="cn-btns">
+      <button class="btn ghost sm" data-calnav="-1">←</button>
+      <button class="btn ghost sm" data-calnav="today">${t('calToday')}</button>
+      <button class="btn ghost sm" data-calnav="1">→</button></div></div>
+    <div class="cal-grid">${dows.map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div></div>
+  <div class="cal-events"><h3>📅 ${dayLabel}</h3>
+    ${dayEvs.length ? dayEvs.map(e=>{ const o = e.o; return `<div class="cal-ev"><span class="ce-ico">${e.type==='service'?'🛠️':e.type==='delivery'?'📬':'🧾'}</span>
+      <div style="flex:1"><b>#${o.id} • ${fmt(o.total)}</b><small>${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join(' ')} ${esc(o.addr.city||'')}</small></div>
+      <span class="ev-pill ev-${e.type}">${e.type==='service'?t('calService'):e.type==='delivery'?t('calDelivery'):t('calPlaced')}</span>
+      <button class="btn secondary sm" data-track="${o.id}">📍</button></div>`; }).join('')
+    : `<div class="empty"><div class="big">🗓️</div><p>${t('calNone')}</p></div>`}
+  </div></div>`;
+}
+function ordersHTML(){
+  if(!orders.length) return `<div class="empty" style="padding-top:80px"><div class="big">📦</div><h3>${t('ordEmpty')}</h3><p>${t('ordEmptySub')}</p><button class="btn primary" data-vert-go="all">${t('ordStart')}</button></div>`;
+  const sub = HI() ? `${orders.length} ऑर्डर • लाइव ट्रैकिंग` : `${orders.length} order(s) • live tracking`;
+  return `<div class="sec-head" style="margin-top:6px"><div><h2>📦 ${t('ordTitle')}</h2><p>${sub}</p></div>
+    <div class="view-toggle"><button class="${ordView==='list'?'active':''}" data-ordview="list">📋 ${t('calList')}</button><button class="${ordView==='calendar'?'active':''}" data-ordview="calendar">🗓️ ${t('calCal')}</button></div></div>` +
+    (ordView === 'calendar' ? calendarHTML() : [...orders].reverse().map(orderCardHTML).join(''));
 }
 
 /* ============================================================
@@ -588,7 +683,7 @@ function renderPage(){
     route = { page:'shop', vertical:b.dataset.hero, category:'all', query:'', sort:'pop' };
     renderAll(); window.scrollTo({top:0,behavior:'smooth'});
   });
-  $$('[data-banner]', pg).forEach(b => b.onclick = () => applyCoupon(BANNERS[+b.dataset.banner].code, true));
+  $$('[data-banner]', pg).forEach(b => b.onclick = () => bannerGo(+b.dataset.banner));
   $$('[data-city]', pg).forEach(b => b.onclick = () => {
     const c = CITIES.find(x=>x.n===b.dataset.city);
     if(c){ location = c; LS.set('aw_loc_v1', location); renderNav(); toast(`Delivering to ${c.n} ${c.pin} 📍`,'📍'); }
@@ -618,6 +713,14 @@ function renderPage(){
     const o = orders.find(x=>x.id===b.dataset.reorder);
     if(o){ o.items.forEach(i => { if(getP(i.id)) cart[i.id]=(cart[i.id]||0)+i.qty; }); saveCart(); updateBadges(); renderCart(); openDrawer('cartDrawer'); toast('Items added back to cart','🔁'); }
   });
+  $$('[data-ordview]', pg).forEach(b => b.onclick = () => { ordView = b.dataset.ordview; renderPage(); });
+  $$('[data-calnav]', pg).forEach(b => b.onclick = () => {
+    const v = b.dataset.calnav, now = new Date();
+    if(v === 'today') calCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+    else calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+ +v, 1);
+    renderPage();
+  });
+  $$('[data-calday]', pg).forEach(b => b.onclick = () => { calDay = b.dataset.calday; renderPage(); });
   const sAdd = $('#sAdd'); if(sAdd) sAdd.onclick = ()=>openPM(null);
   const sView = $('#sView'); if(sView) sView.onclick = ()=>{ route.page='home'; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); };
   const sCloud = $('#sCloud'); if(sCloud) sCloud.onclick = ()=>{ openDrawer('customDrawer'); renderCustomizer('data'); };
@@ -795,7 +898,8 @@ function applyCoupon(code, silent){
   const elig = cp.vert ? tt.items.filter(i=>i.p.v===cp.vert).reduce((a,i)=>a+i.p.p*i.qty,0) : tt.sub;
   if(elig < cp.min){ toast(`Needs min order ${fmt(cp.min)}${cp.vert?' in '+cp.vert:''}`,'⚠️'); return false; }
   activeCoupon = code; LS.set('aw_coupon_v1', code);
-  toast(`Coupon ${code} applied!`,'🎉'); renderCart();
+  if(!silent) toast(`Coupon ${code} applied!`,'🎉'); else toast(`Coupon ${code} applied!`,'🎉');
+  renderCart();
   if(route.page==='offers') renderPage();
   return true;
 }
@@ -895,16 +999,16 @@ function readAddrForm(prefix){
 }
 
 /* ============================================================
-   CHECKOUT + SLOTS + UPI
+   CHECKOUT + SLOTS + UPI + RAZORPAY
    ============================================================ */
 function openCheckout(){
   const tt = cartTotals();
   if(!tt.items.length){ toast('Cart is empty','🛒'); return; }
   const svc = serviceSlots();
-  coState = { step:0, addr:coState.addr||{}, pay:coState.pay||'upi',
+  coState = { step:0, addr:coState.addr||{}, pay:(coState.pay==='razorpay'&&!rzpKey)?'upi':(coState.pay||'upi'),
     upi:coState.upi&&coState.upi.id ? coState.upi : { id:'', verified:false, name:'', app:'GPay' },
     addrId:addrs.length?addrs[0].id:null, newAddr:!addrs.length,
-    slot:{ food:'asap', speed:coState.slot?coState.slot.speed:'standard', service:svc.length?svc[0].v:'' } };
+    slot:{ food:'asap', speed:coState.slot?coState.slot.speed:'standard', service:svc.length?svc[0].v:'', serviceDate:svc.length?svc[0].d:'' } };
   renderCheckout(); closeAll(); openModal('checkoutModal');
 }
 function upiPanelHTML(total){
@@ -937,11 +1041,71 @@ function slotHTML(){
   if(!hasFood && !hasSvc && !hasShip) return '';
   let h = `<div class="addr-head" style="margin-top:16px"><h4>🕐 ${t('slotTitle')}</h4></div>`;
   if(hasFood) h += `<div class="slot-sec"><h4>🍔 ${t('slotFood')}</h4><div class="slot-pills">${foodSlots().map(s=>`<button class="slot-pill ${coState.slot.food===s.v?'sel':''}" data-slotf="${esc(s.v)}">${esc(s.l)}</button>`).join('')}</div></div>`;
-  if(hasSvc) h += `<div class="slot-sec"><h4>🛠️ ${t('slotSvc')}</h4><div class="slot-pills">${serviceSlots().map(s=>`<button class="slot-pill ${coState.slot.service===s.v?'sel':''}" data-slots="${esc(s.v)}">${esc(s.l)}</button>`).join('')}</div></div>`;
+  if(hasSvc) h += `<div class="slot-sec"><h4>🛠️ ${t('slotSvc')}</h4><div class="slot-pills">${serviceSlots().map(s=>`<button class="slot-pill ${coState.slot.service===s.v?'sel':''}" data-slots="${esc(s.v)}" data-slotd="${s.d}">${esc(s.l)}</button>`).join('')}</div></div>`;
   if(hasShip) h += `<div class="slot-sec"><h4>📦 ${t('slotSpeed')}</h4><div class="slot-pills">
     <button class="slot-pill ${coState.slot.speed==='standard'?'sel':''}" data-slotspeed="standard">${t('slotStd')}<small>${t('delivery')}: ${fmt(settings.commerce.deliveryFee)}</small></button>
     <button class="slot-pill ${coState.slot.speed==='express'?'sel':''}" data-slotspeed="express">⚡ ${t('slotExp')}<small>+ ${fmt(EXPRESS_FEE)}</small></button></div></div>`;
   return h;
+}
+function payMethods(){
+  const m = [['upi','📱',t('payUpi')],['card','💳',t('payCard')],['cod','💵',t('payCod')],['wallet','👛',t('payWallet')]];
+  if(rzpKey) m.push(['razorpay','💠',t('rzpPay')]);
+  return m;
+}
+function doPlaceOrder(tt, box, payLabel, extra){
+  const o = Object.assign({ id:uid('AW').toUpperCase(), items:tt.items.map(i=>({id:i.p.id,qty:i.qty,price:i.p.p})),
+    total:Math.round(tt.total), sub:Math.round(tt.sub), discount:Math.round(tt.discount),
+    status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
+    addr:coState.addr, pay:payLabel, upi:'', placedAt:Date.now(),
+    slot:Object.assign({}, coState.slot), gift:gift.on?Object.assign({}, gift):null, rating:null }, extra||{});
+  orders.push(o); saveOrders(); cloudUp();
+  cart={}; activeCoupon=null; saveCart(); LS.del('aw_coupon_v1'); updateBadges();
+  notify(HI()?'ऑर्डर कन्फर्म 🎉':'Order confirmed 🎉', `#${o.id} • ${fmt(o.total)}`, '🎉');
+  const soon = HI() ? `${esc(o.addr.city)} में जल्द आ रहा है` : `arriving soon at ${esc(o.addr.city)}`;
+  box.innerHTML = `<div class="modal-body"><div class="success-box"><div class="big">🎉</div>
+    <h2>${t('coSuccess')}</h2><p class="muted">${HI()?'ऑर्डर':'Order'} <b>#${o.id}</b> • ${fmt(o.total)} • ${soon}</p>
+    ${slotSummary(o)?`<p class="muted small">🕐 ${esc(slotSummary(o))}</p>`:''}
+    <div class="track-steps" style="margin:18px 0">${[0,1,2,3,4].map(i=>`<div class="tstep ${i===0?'done':''}"><div class="tdot">${i===0?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
+    <div style="display:flex;gap:8px;justify-content:center"><button class="btn primary" id="okTrack">📍 ${t('coTrack')}</button>
+    <button class="btn secondary" id="okShop">${t('coShop')}</button></div></div></div>`;
+  const ot = $('#okTrack'); if(ot) ot.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='orders'; renderAll(); openTrack(o.id); };
+  const os = $('#okShop'); if(os) os.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='home'; renderAll(); };
+}
+let rzpLoading = null;
+function loadRazorpay(){
+  if(window.Razorpay) return Promise.resolve(true);
+  if(rzpLoading) return rzpLoading;
+  rzpLoading = new Promise((res, rej)=>{
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload = ()=>res(true);
+    s.onerror = ()=>rej(new Error('load'));
+    setTimeout(()=>rej(new Error('timeout')), 15000);
+    document.head.appendChild(s);
+  }).catch(e=>{ rzpLoading = null; throw e; });
+  return rzpLoading;
+}
+async function rzpFlow(tt, box){
+  const pl = $('#coPlace');
+  const resetBtn = ()=>{ const b=$('#coPlace'); if(b){ b.disabled=false; b.textContent=`${t('coPlace')} • ${fmt(tt.total)}`; } };
+  try{
+    if(pl){ pl.disabled = true; pl.textContent = '⏳ ' + t('rzpLoad'); }
+    await loadRazorpay();
+    toast(t('rzpWin'),'💠');
+    const rz = new window.Razorpay({
+      key: rzpKey,
+      amount: Math.round(tt.total*100),
+      currency: 'INR',
+      name: `${settings.storeName} ${settings.storeName2}`,
+      description: `${tt.count} item(s)`,
+      prefill: { name:coState.addr.name||'', contact:coState.addr.phone||'', email:(user&&user.email)||'' },
+      theme: { color:settings.theme.primary },
+      modal: { ondismiss:resetBtn },
+      handler:(auth)=>{ doPlaceOrder(tt, box, 'Razorpay', { razorpay:{ payment_id:auth.razorpay_payment_id||'', signature:auth.razorpay_signature||'' } }); },
+    });
+    rz.on('payment.failed', ()=>{ toast(t('rzpFail'),'⚠️'); resetBtn(); });
+    rz.open();
+  }catch{ toast(t('rzpFail'),'⚠️'); resetBtn(); }
 }
 function renderCheckout(){
   const tt = cartTotals(), box = $('#checkoutBox'); if(!box) return;
@@ -955,8 +1119,7 @@ function renderCheckout(){
   else if(coState.step===1) box.innerHTML = `
     <div class="modal-head"><h3>💳 ${HI()?'चेकआउट':'Checkout'} — ${t('coPay')}</h3><button class="icon-btn" onclick="document.getElementById('checkoutModal').classList.remove('show')">✕</button></div>
     <div class="modal-body"><div class="co-steps"><div>1. ${t('coAddr')}</div><div class="active">2. ${t('coPay')}</div><div>3. ${t('coDone')}</div></div>
-    ${[['upi','📱',t('payUpi')],['card','💳',t('payCard')],['cod','💵',t('payCod')],['wallet','👛',t('payWallet')]].map(([v,e,l])=>
-      `<div class="pay-opt ${coState.pay===v?'sel':''}" data-pay="${v}"><span class="pe">${e}</span>${l}</div>`).join('')}
+    ${payMethods().map(([v,e,l])=>`<div class="pay-opt ${coState.pay===v?'sel':''}" data-pay="${v}"><span class="pe">${e}</span>${l}</div>`).join('')}
     ${coState.pay==='upi' ? upiPanelHTML(tt.total) : ''}
     <div class="bill-row"><span>${t('coItems')} (${tt.count})</span><span>${fmt(tt.sub)}</span></div>
     ${tt.discount?`<div class="bill-row"><span>${t('coCoupon')}</span><span class="off">− ${fmt(tt.discount)}</span></div>`:''}
@@ -969,7 +1132,7 @@ function renderCheckout(){
   if(coState.step===0){
     $$('[data-addrsel]',box).forEach(el=>el.onclick=()=>{ coState.addrId=el.dataset.addrsel; renderCheckout(); });
     $$('[data-slotf]',box).forEach(el=>el.onclick=()=>{ coState.slot.food=el.dataset.slotf; renderCheckout(); });
-    $$('[data-slots]',box).forEach(el=>el.onclick=()=>{ coState.slot.service=el.dataset.slots; renderCheckout(); });
+    $$('[data-slots]',box).forEach(el=>el.onclick=()=>{ coState.slot.service=el.dataset.slots; coState.slot.serviceDate=el.dataset.slotd||''; renderCheckout(); });
     $$('[data-slotspeed]',box).forEach(el=>el.onclick=()=>{ coState.slot.speed=el.dataset.slotspeed; renderCheckout(); });
     const nb = $('#coNew'); if(nb) nb.onclick = ()=>{ coState.newAddr=true; renderCheckout(); };
     const bs = $('#coBackSaved'); if(bs) bs.onclick = ()=>{ coState.newAddr=false; renderCheckout(); };
@@ -1011,28 +1174,11 @@ function renderCheckout(){
     const pl = $('#coPlace');
     if(pl) pl.onclick = ()=>{
       if(coState.pay==='upi' && !coState.upi.verified){ toast(HI()?'पहले अपनी UPI ID वेरिफाई करें':'Please verify your UPI ID first','⚠️'); return; }
+      if(coState.pay==='razorpay'){ rzpFlow(tt, box); return; }
       pl.disabled = true;
       const payLabel = coState.pay==='upi' ? `UPI (${coState.upi.app})` : coState.pay.toUpperCase();
       pl.textContent = coState.pay==='upi' ? `⏳ ${t('upiWait')} ${coState.upi.app}…` : t('coPlacing');
-      setTimeout(()=>{
-        const o = { id:uid('AW').toUpperCase(), items:tt.items.map(i=>({id:i.p.id,qty:i.qty,price:i.p.p})),
-          total:Math.round(tt.total), sub:Math.round(tt.sub), discount:Math.round(tt.discount),
-          status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
-          addr:coState.addr, pay:payLabel, upi:coState.pay==='upi'?coState.upi.id:'', placedAt:Date.now(),
-          slot:Object.assign({}, coState.slot), gift:gift.on?Object.assign({}, gift):null, rating:null };
-        orders.push(o); saveOrders(); cloudUp();
-        cart={}; activeCoupon=null; saveCart(); LS.del('aw_coupon_v1'); updateBadges();
-        notify(HI()?'ऑर्डर कन्फर्म 🎉':'Order confirmed 🎉', `#${o.id} • ${fmt(o.total)}`, '🎉');
-        const soon = HI() ? `${esc(o.addr.city)} में जल्द आ रहा है` : `arriving soon at ${esc(o.addr.city)}`;
-        box.innerHTML = `<div class="modal-body"><div class="success-box"><div class="big">🎉</div>
-          <h2>${t('coSuccess')}</h2><p class="muted">${HI()?'ऑर्डर':'Order'} <b>#${o.id}</b> • ${fmt(o.total)} • ${soon}</p>
-          ${slotSummary(o)?`<p class="muted small">🕐 ${esc(slotSummary(o))}</p>`:''}
-          <div class="track-steps" style="margin:18px 0">${[0,1,2,3,4].map(i=>`<div class="tstep ${i===0?'done':''}"><div class="tdot">${i===0?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
-          <div style="display:flex;gap:8px;justify-content:center"><button class="btn primary" id="okTrack">📍 ${t('coTrack')}</button>
-          <button class="btn secondary" id="okShop">${t('coShop')}</button></div></div></div>`;
-        const ot = $('#okTrack'); if(ot) ot.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='orders'; renderAll(); openTrack(o.id); };
-        const os = $('#okShop'); if(os) os.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='home'; renderAll(); };
-      }, coState.pay==='upi' ? 1700 : 1200);
+      setTimeout(()=>doPlaceOrder(tt, box, payLabel, { upi:coState.pay==='upi'?coState.upi.id:'' }), coState.pay==='upi'?1700:1200);
     };
   }
 }
@@ -1127,7 +1273,7 @@ function openTrack(id){
       : `<button class="btn secondary full" id="trackRate" style="margin-bottom:10px">⭐ ${t('rateBtn')} — ${rider.name}</button>`) : ''}
     <div class="rev"><b>🧾 ${t('coItems')}</b><p>${items.map(esc).join('<br/>')}</p></div>
     <div class="rev"><b>📍 ${t('pDeliverTo')}</b><p>${esc(o.addr.name)} • ${esc(o.addr.line)}, ${esc(o.addr.city)} ${esc(o.addr.pin)}</p></div>
-    <div class="bill-row total"><span>${HI()?'भुगतान':'Paid via'} ${esc(o.pay)}</span><span>${fmt(o.total)}</span></div>
+    <div class="bill-row total"><span>${HI()?'भुगतान':'Paid via'} ${esc(o.pay)}${o.razorpay&&o.razorpay.payment_id?' • …'+esc(o.razorpay.payment_id.slice(-6)):''}</span><span>${fmt(o.total)}</span></div>
     ${o.status<4?`<button class="btn secondary full" id="simNext" style="margin-top:12px">🔄 ${HI()?'स्टेटस रिफ्रेश करें':'Refresh live status'}</button>`:''}
   </div>`;
   openModal('trackModal');
@@ -1224,7 +1370,7 @@ setInterval(()=>{
 }, 25000);
 
 /* ============================================================
-   LOCATION + AUTH (+ address manager) + SEARCH
+   LOCATION + AUTH (+ address manager) + SEARCH + VOICE
    ============================================================ */
 function renderCities(f=''){
   const q = f.toLowerCase();
@@ -1303,11 +1449,45 @@ function bindSearch(inputEl){
   document.addEventListener('click', e=>{ if(sug && !e.target.closest('.search-wrap')) sug.classList.remove('show'); });
   return go;
 }
+function bindVoice(btnId, inputEl, go){
+  const btn = document.getElementById(btnId);
+  if(!btn || !inputEl) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ btn.style.display = 'none'; return; }
+  btn.onclick = ()=>{
+    const rec = new SR();
+    rec.lang = HI() ? 'hi-IN' : 'en-IN';
+    rec.interimResults = true; rec.maxAlternatives = 1;
+    const oldPH = inputEl.placeholder;
+    inputEl.value = '';
+    btn.classList.add('listening');
+    inputEl.placeholder = t('voiceListen');
+    try{ inputEl.focus(); }catch{}
+    let finalQ = '';
+    rec.onresult = e=>{
+      let interim = '';
+      for(let i=e.resultIndex; i<e.results.length; i++){
+        const tr = e.results[i][0].transcript;
+        if(e.results[i].isFinal) finalQ += tr; else interim += tr;
+      }
+      inputEl.value = finalQ || interim;
+      if(finalQ){ try{ rec.stop(); }catch{} }
+    };
+    rec.onend = ()=>{
+      btn.classList.remove('listening');
+      inputEl.placeholder = oldPH;
+      const q = (finalQ || inputEl.value).trim();
+      if(q) go(q); else toast(t('voiceNoHit'),'🎤');
+    };
+    rec.onerror = ()=>{ btn.classList.remove('listening'); inputEl.placeholder = oldPH; };
+    try{ rec.start(); }catch{ btn.classList.remove('listening'); inputEl.placeholder = oldPH; }
+  };
+}
 
 /* ============================================================
    CUSTOMIZER
    ============================================================ */
-const CUSTOM_TABS = [['store','🏪 Store'],['theme','🎨 Theme'],['home','🏠 Homepage'],['commerce','💰 Commerce'],['products','📦 Products'],['data','💾 Data']];
+const CUSTOM_TABS = [['store','🏪 Store'],['theme','🎨 Theme'],['home','🏠 Homepage'],['promos','🎁 Promos'],['commerce','💰 Commerce'],['products','📦 Products'],['data','💾 Data']];
 function cloudCardHTML(){
   const on = cloudOn();
   let last = '';
@@ -1372,9 +1552,23 @@ function renderCustomizer(tab='store'){
       ${defs.map(([k,l])=>`<div class="toggle-row"><span>${l}</span><label class="switch"><input type="checkbox" data-sec="${k}" ${S.sections[k]?'checked':''}/><span class="slider"></span></label></div>`).join('')}</div>
       <p class="muted small">Toggle sections on/off — the homepage rebuilds instantly.</p>`;
   }
+  if(tab==='promos'){
+    const all = getBanners();
+    B.innerHTML = `<div style="display:flex;gap:8px"><button class="btn primary full" id="cAddB">＋ ${t('promoAdd')}</button><button class="btn ghost sm" id="cResetB" title="Reset">↺</button></div>
+      <p class="muted small center">🎁 × ${all.length}</p>
+      <div id="cBList">${all.length ? all.map(promoRowHTML).join('') : `<p class="muted small center">${t('promoEmpty')}</p>`}</div>`;
+    const ab = $('#cAddB'); if(ab) ab.onclick = ()=>openPromo(null);
+    const rb = $('#cResetB'); if(rb) rb.onclick = ()=>{ customBanners = null; LS.del('aw_banners_v1'); renderCustomizer('promos'); renderPage(); toast('Banners reset','🎁'); };
+    bindPromoRows();
+  }
   if(tab==='commerce'){
     const C = S.commerce;
-    B.innerHTML = `<div class="c-group"><h4>Money</h4>
+    B.innerHTML = `<div class="c-group"><h4>💠 ${t('rzpTitle')}</h4><div class="cloud-card">
+      <p class="muted small" style="margin:0 0 4px">${t('rzpDesc')}</p>
+      <div class="field"><label>${t('rzpKey')}</label><input type="text" id="rzpKeyIn" value="${esc(rzpKey)}" placeholder="rzp_test_… / rzp_live_…"/></div>
+      <div class="cloud-row"><button class="btn primary full sm" id="rzpSave">${t('rzpSave')}</button>${rzpKey?`<button class="btn danger-ghost sm" id="rzpRemove">${t('rzpRemove')}</button>`:''}</div>
+    </div></div>
+    <div class="c-group"><h4>Money</h4>
       <div class="field"><label>Currency symbol</label><input type="text" id="cCur" value="${esc(C.currency)}"/></div>
       <div class="field"><label>Delivery fee</label><input type="number" id="cDel" value="${C.deliveryFee}"/></div>
       <div class="field"><label>Free delivery above</label><input type="number" id="cFree" value="${C.freeAbove}"/></div>
@@ -1423,6 +1617,60 @@ function bindPmRows(){
     renderCustomizer('products'); renderPage(); toast('Product deleted','🗑️');
   });
 }
+function promoRowHTML(b){
+  const v = b.vert && b.vert !== 'all' ? vertOf(b.vert) : null;
+  return `<div class="pm-row"><span class="pe" style="background:${b.bg};font-size:22px">${b.e}</span><div class="pi"><b>${esc(b.t)||'(untitled)'}</b><small>${b.code?'🎟️ '+b.code+' • ':''}${v?v.emoji+' '+vname(v):'🌍 '+t('all')}</small></div>
+  <button class="btn secondary sm" data-bedit="${b.id}">${t('selEdit')}</button><button class="btn danger-ghost sm" data-bdel="${b.id}">✕</button></div>`;
+}
+function bindPromoRows(){
+  $$('#cBList [data-bedit]').forEach(b=>b.onclick=()=>openPromo(b.dataset.bedit));
+  $$('#cBList [data-bdel]').forEach(b=>b.onclick=()=>{
+    initCustomBanners();
+    customBanners = customBanners.filter(x=>x.id!==b.dataset.bdel);
+    saveBanners(); renderCustomizer('promos'); renderPage(); toast('Banner deleted','🗑️');
+  });
+}
+function openPromo(id){
+  initCustomBanners();
+  const b = id ? customBanners.find(x=>x.id===id) : { id:uid('b'), e:'🎁', t:'', s:'', bg:PROMO_GRADIENTS[0], code:'', vert:'all' };
+  if(!b) return;
+  let bg = b.bg || PROMO_GRADIENTS[0];
+  const box = $('#promoBox'); if(!box) return;
+  box.innerHTML = `<div class="modal-head"><h3>${id?'✏️':'＋'} ${t('promoTitle')}</h3>
+    <button class="icon-btn" onclick="document.getElementById('promoModal').classList.remove('show')">✕</button></div>
+  <div class="modal-body">
+    <div class="banner" id="pbPrev" style="background:${bg};margin-bottom:12px;pointer-events:none"><span class="be">${b.e}</span><b>${esc(b.t)||'Title'}</b><small>${esc(b.s)||'Subtitle'}</small><span class="go">🎟️ →</span></div>
+    <div class="addr-grid">
+      <div class="field"><label>${t('promoEmoji')}</label><input type="text" id="pbE" value="${esc(b.e)}"/></div>
+      <div class="field"><label>${t('promoCode')}</label><select id="pbCode"><option value="">${t('promoNone')}</option>${COUPONS.map(c=>`<option value="${c.code}" ${b.code===c.code?'selected':''}>${c.code}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label>${HI()?'शीर्षक':'Title'}</label><input type="text" id="pbT" value="${esc(b.t)}"/></div>
+    <div class="field"><label>${t('promoSubT')}</label><input type="text" id="pbS" value="${esc(b.s)}"/></div>
+    <div class="field"><label>${t('promoColor')}</label><div class="swatch-row">${PROMO_GRADIENTS.map(x=>`<div class="swatch ${x===bg?'active':''}" data-pg="${x}" style="background:${x};border-radius:10px"></div>`).join('')}</div></div>
+    <div class="field"><label>${t('promoTarget')}</label><select id="pbVert"><option value="all">🌍 ${t('all')}</option>${VERTICALS.map(v=>`<option value="${v.id}" ${b.vert===v.id?'selected':''}>${v.emoji} ${vname(v)}</option>`).join('')}</select></div>
+    <button class="btn primary full" id="pbSave">${t('promoSave')}</button>
+  </div>`;
+  openModal('promoModal');
+  const prev = ()=>{
+    const pv = $('#pbPrev'); if(!pv) return;
+    pv.style.background = bg;
+    pv.querySelector('.be').textContent = ($('#pbE')||{value:'🎁'}).value || '🎁';
+    pv.querySelector('b').textContent = ($('#pbT')||{value:''}).value || 'Title';
+    pv.querySelector('small').textContent = ($('#pbS')||{value:''}).value || 'Subtitle';
+  };
+  ['pbE','pbT','pbS'].forEach(x=>{ const el=$('#'+x); if(el) el.oninput = prev; });
+  $$('#promoBox [data-pg]').forEach(s=>s.onclick=()=>{ bg=s.dataset.pg; $$('#promoBox [data-pg]').forEach(x=>x.classList.remove('active')); s.classList.add('active'); prev(); });
+  const sv = $('#pbSave');
+  if(sv) sv.onclick = ()=>{
+    const obj = { id:b.id, e:($('#pbE')||{value:'🎁'}).value||'🎁', t:($('#pbT')||{value:''}).value.trim(),
+      s:($('#pbS')||{value:''}).value.trim(), bg, code:($('#pbCode')||{value:''}).value, vert:($('#pbVert')||{value:'all'}).value };
+    const ix = customBanners.findIndex(x=>x.id===b.id);
+    if(ix>-1) customBanners[ix] = obj; else customBanners.push(obj);
+    saveBanners();
+    const pm = $('#promoModal'); if(pm) pm.classList.remove('show');
+    renderCustomizer('promos'); renderPage(); toast('Banner saved','🎁');
+  };
+}
 function bindCustomizer(tab){
   const live = ()=>{ saveSettings(); cloudUp(); applySettings(); applyChromeI18n(); renderNav(); renderPage(); };
   const on = (id, ev, fn) => { const el = document.getElementById(id); if(el) el[ev] = fn; };
@@ -1457,6 +1705,8 @@ function bindCustomizer(tab){
   }
   if(tab==='home') $$('[data-sec]').forEach(x=>x.onchange=()=>{ settings.sections[x.dataset.sec]=x.checked; live(); });
   if(tab==='commerce'){
+    on('rzpSave','onclick', ()=>{ rzpKey = ($('#rzpKeyIn')||{value:''}).value.trim(); LS.set('aw_rzp_v1', rzpKey); renderCustomizer('commerce'); toast(rzpKey?'Razorpay enabled 💠':'Key cleared','💠'); });
+    on('rzpRemove','onclick', ()=>{ rzpKey = ''; LS.del('aw_rzp_v1'); renderCustomizer('commerce'); });
     on('cCur','oninput', e=>{ settings.commerce.currency=e.target.value||'₹'; live(); renderCart(); });
     on('cDel','oninput', e=>{ settings.commerce.deliveryFee=+e.target.value||0; live(); renderCart(); });
     on('cFree','oninput', e=>{ settings.commerce.freeAbove=+e.target.value||0; live(); renderCart(); });
@@ -1491,7 +1741,7 @@ function bindCustomizer(tab){
   }
 }
 function exportData(){
-  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, exportedAt:new Date().toISOString() };
+  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, customBanners, exportedAt:new Date().toISOString() };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download = 'anywhere-anything-backup.json'; a.click();
@@ -1615,6 +1865,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     settings.theme.mode = cur==='dark'?'light':'dark'; saveSettings(); applySettings();
   });
   const goDesk = bindSearch($('#searchInput'));
+  bindVoice('btnMic', $('#searchInput'), goDesk);
+  bindVoice('btnMicM', $('#searchInputM'), goDesk);
   on('btnSearch', ()=>{ const si=$('#searchInput'); const q=si?si.value.trim():''; if(q) goDesk(q); });
   const sim = $('#searchInputM');
   if(sim) sim.addEventListener('keydown', e=>{ if(e.key==='Enter'&&e.target.value.trim()) goDesk(e.target.value.trim()); });
@@ -1632,6 +1884,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(d.deletedIds){ deletedIds=d.deletedIds; LS.set('aw_products_deleted_v1',deletedIds); }
       if(d.editedProducts){ editedProducts=d.editedProducts; LS.set('aw_products_edited_v1',editedProducts); }
       if(d.addrs){ addrs=d.addrs; saveAddrs(); }
+      if(d.customBanners){ customBanners=d.customBanners; saveBanners(); }
       renderAll(); renderCustomizer('store'); toast('Backup restored!','💾');
     }catch{ toast('Invalid backup file','⚠️'); } };
     rd.readAsText(f); e.target.value='';
