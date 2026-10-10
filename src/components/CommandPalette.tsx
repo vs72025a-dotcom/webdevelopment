@@ -123,6 +123,17 @@ export function CommandPalette(): JSX.Element | null {
         },
       },
       {
+        id: 'shortcuts',
+        group: 'Help',
+        title: 'Keyboard shortcuts',
+        hint: 'View all keyboard shortcuts and navigation bindings (?)',
+        icon: 'command',
+        keywords: 'shortcuts hotkeys keys bindings help cheatsheet',
+        run: () => {
+          window.dispatchEvent(new CustomEvent('am:open-shortcuts'));
+        },
+      },
+      {
         id: 'new-chat',
         group: 'Actions',
         title: 'New conversation',

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Backdrop } from './theme/Backdrop';
 import { StoreProvider, useStore, type ViewId } from './store/appStore';
 import { ThemeProvider } from './theme/ThemeContext';
@@ -8,6 +8,7 @@ import { Sidebar } from './components/Sidebar';
 import { StatusBar } from './components/StatusBar';
 import { CommandPalette } from './components/CommandPalette';
 import { Toasts } from './components/Toasts';
+import { ShortcutsModal } from './components/ShortcutsModal';
 import { ChatView } from './views/ChatView';
 
 /*
@@ -57,6 +58,7 @@ const VIEW_ORDER: ViewId[] = ['chat', 'documents', 'codelab', 'studio', 'agents'
 function Workspace(): JSX.Element {
   const store = useStore();
   const { view, panelOpen, setPanelOpen, setPaletteOpen, setView, stop, busy } = store;
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const onKey = useCallback(
     (e: KeyboardEvent) => {
@@ -76,9 +78,21 @@ function Workspace(): JSX.Element {
         setPanelOpen(!panelOpen);
         return;
       }
-      if (mod && e.key === 'Escape') {
+      if (e.key === 'Escape') {
+        if (shortcutsOpen) {
+          e.preventDefault();
+          setShortcutsOpen(false);
+          return;
+        }
+        if (busy) {
+          e.preventDefault();
+          stop();
+          return;
+        }
+      }
+      if (e.key === '?' && !typing && !mod) {
         e.preventDefault();
-        if (busy) stop();
+        setShortcutsOpen((v) => !v);
         return;
       }
       if (mod && e.shiftKey && e.key.toLowerCase() === 'o') {
@@ -107,7 +121,7 @@ function Workspace(): JSX.Element {
         }, 30);
       }
     },
-    [busy, panelOpen, setPaletteOpen, setPanelOpen, setView, stop, store],
+    [busy, panelOpen, setPaletteOpen, setPanelOpen, setView, stop, store, shortcutsOpen],
   );
 
   useEffect(() => {
@@ -120,6 +134,12 @@ function Workspace(): JSX.Element {
     window.addEventListener('am:open-codelab', onLab);
     return () => window.removeEventListener('am:open-codelab', onLab);
   }, [setView]);
+
+  useEffect(() => {
+    const onShortcuts = () => setShortcutsOpen(true);
+    window.addEventListener('am:open-shortcuts', onShortcuts);
+    return () => window.removeEventListener('am:open-shortcuts', onShortcuts);
+  }, []);
 
   // Close the drawer when the viewport shrinks past the breakpoint.
   useEffect(() => {
@@ -168,6 +188,7 @@ function Workspace(): JSX.Element {
       ) : null}
 
       <CommandPalette />
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Toasts />
 
       {!store.ready ? (

@@ -336,6 +336,19 @@ async function main(): Promise<void> {
   check('palette action applied theme', w.document.documentElement.getAttribute('data-theme') === 'abyss');
   check('palette closed after run', !q('.palette-panel'));
 
+  process.stdout.write('\nKeyboard shortcuts modal\n');
+  await act(async () => {
+    w.dispatchEvent(new w.KeyboardEvent('keydown', { key: '?', bubbles: true }));
+  });
+  await settle(200);
+  check('shortcuts modal opened via ? key', !!q('.palette-panel[aria-label="Keyboard shortcuts"]'));
+  check('shortcuts modal displays shortcuts', qa('.palette-panel[aria-label="Keyboard shortcuts"] kbd').length >= 10);
+  await act(async () => {
+    w.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  });
+  await settle(200);
+  check('shortcuts modal closed via Esc', !q('.palette-panel[aria-label="Keyboard shortcuts"]'));
+
   process.stdout.write('\nPersistence\n');
   await act(async () => {
     await new Promise((r) => setTimeout(r, 300));

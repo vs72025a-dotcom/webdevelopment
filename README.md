@@ -9,7 +9,7 @@ optionally hand the wheel to a frontier model when you paste an API key.
 npm install
 npm run dev        # http://localhost:5173 — binds 0.0.0.0
 npm run build      # tsc -b && vite build
-npm test           # typecheck + the jsdom runtime smoke test (94 assertions)
+npm test           # typecheck + the jsdom runtime smoke test (97 assertions)
 ```
 
 ---
@@ -26,7 +26,7 @@ npm test           # typecheck + the jsdom runtime smoke test (94 assertions)
 | **Settings** | Theme and accent, motion and density, engine retrieval toggles, provider configuration with a live connection probe, voice, storage usage, JSON export, **AI Telemetry & Observability** (real-time tokens in/out, turn latencies, tok/s throughput, grounding veracity, intent distribution matrix, live 50-query vector store benchmark, and the 16 on-device tools registry), and **diagnostics that run live assertions** against the calculator, unit converter, colour engine, code analyser, retrieval index, grounding path and persistence. |
 
 Global: `⌘K` command palette (also searches your conversations and documents), `⌘1–6` to jump
-views, `⌘B` panel, `/` to focus the composer, `⌘⏎` to run in Code Lab and Agents.
+views, `⌘B` panel, `?` keyboard shortcuts cheat sheet, `/` to focus the composer, `⌘⏎` to run in Code Lab and Agents.
 
 ## The engine
 
@@ -154,7 +154,7 @@ reading the conversation back out of IndexedDB. It waits for the lazily-loaded c
 sleeping and hoping, then checks the extended pack is indexed and
 labelled as knowledge rather than as a user document, toggles it off and on through the real
 Settings switch, imports a library fixture and confirms it is retrievable, and verifies the shipped
-manifest and service worker, the AI Telemetry & Observability suite, and the live 50-query vector retrieval benchmark, and drag-and-drop file ingestion in the composer, conversation branching, and direct Code Lab code-block transfer, and deep PWA shortcut navigation. 94 assertions, all passing.
+manifest and service worker, the AI Telemetry & Observability suite, and the live 50-query vector retrieval benchmark, and drag-and-drop file ingestion in the composer, conversation branching, and direct Code Lab code-block transfer, deep PWA shortcut navigation, and the interactive keyboard shortcuts cheat sheet. 97 assertions, all passing.
 
 The scratch harnesses under `.scratch/` (gitignored) cover the maths parser, unit conversion,
 markdown safety, the highlighter, the retrieval benchmark, the extended-pack ablation study and

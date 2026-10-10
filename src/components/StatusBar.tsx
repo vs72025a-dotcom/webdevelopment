@@ -121,6 +121,17 @@ export function StatusBar(): JSX.Element {
       >
         <kbd>⌘K</kbd> commands
       </span>
+
+      <span className="status-sep" />
+
+      <span
+        className="status-item"
+        onClick={() => window.dispatchEvent(new CustomEvent('am:open-shortcuts'))}
+        style={{ cursor: 'pointer' }}
+        title="View keyboard shortcuts (?)"
+      >
+        <kbd>?</kbd> shortcuts
+      </span>
     </footer>
   );
 }
