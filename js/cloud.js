@@ -55,6 +55,7 @@ const Cloud = {
       orders, extraProducts, deletedIds, editedProducts, addrs,
       loyalty: (typeof loyalty !== 'undefined') ? loyalty : { pts:0, hist:[], updatedAt:0 },
       subs: (typeof subs !== 'undefined') ? subs : [],
+      pilots: (typeof pilots !== 'undefined') ? pilots : [],
       settings: Object.assign({}, settings, { updatedAt: Date.now() }),
     };
   },
@@ -125,11 +126,25 @@ const Cloud = {
     if(changed){ try{ LS.set('aw_subs_v1', subs); }catch{} }
     return changed;
   },
+  applyPilots(arr){
+    if(!Array.isArray(arr) || typeof pilots === 'undefined') return false;
+    const mine = new Map(pilots.map(x=>[x.id, x]));
+    let changed = false;
+    arr.forEach(c=>{
+      if(!c || !c.id) return;
+      const m = mine.get(c.id);
+      if(!m){ pilots.push(c); changed = true; return; }
+      if(c.active === false && m.active !== false){ m.active = false; changed = true; }
+      if((c.nextTs||0) > (m.nextTs||0)){ m.nextTs = c.nextTs; changed = true; }
+    });
+    if(changed){ try{ LS.set('aw_pilot_v1', pilots); }catch{} }
+    return changed;
+  },
   async syncDown(forceSettings){
     if(!this.on) return false;
     const get = async k => { try{ const r = await this.pull(k); return r ? r.data : null; }catch{ return null; } };
-    const [cOrders, cExtra, cEdited, cDeleted, cAddrs, cSettings, cLoyalty, cSubs] = await Promise.all([
-      get('orders'), get('extraProducts'), get('editedProducts'), get('deletedIds'), get('addrs'), get('settings'), get('loyalty'), get('subs'),
+    const [cOrders, cExtra, cEdited, cDeleted, cAddrs, cSettings, cLoyalty, cSubs, cPilots] = await Promise.all([
+      get('orders'), get('extraProducts'), get('editedProducts'), get('deletedIds'), get('addrs'), get('settings'), get('loyalty'), get('subs'), get('pilots'),
     ]);
     let changed = false;
     if(this.applyOrders(cOrders)) changed = true;
@@ -137,6 +152,7 @@ const Cloud = {
     if(this.applyAddrs(cAddrs)) changed = true;
     if(this.applyLoyalty(cLoyalty)) changed = true;
     if(this.applySubs(cSubs)) changed = true;
+    if(this.applyPilots(cPilots)) changed = true;
     if(forceSettings && cSettings && (cSettings.updatedAt||0) > (this.ensure().lastSync||0)){
       settings = Object.assign({}, DEFAULT_SETTINGS, cSettings);
       saveSettings(); changed = true;

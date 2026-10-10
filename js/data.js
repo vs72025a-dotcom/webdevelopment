@@ -237,6 +237,9 @@ en:{
   tipTitle:'Tip your rider', tipSend:'Send tip', tipThanks:'Thanks for tipping!', tipTotal:'tips earned', tipCustom:'Custom',
   giftWrapFirst:'Gift-wrap first delivery', tipBoard:'Top tipped riders',
   reCycle:'usually lasts', reDays:'days', spotTitle:'Rider of the month', spotWhy:'Highest rated + most tipped in your neighborhood', wrapTitle:'Wrap style',
+  pilotBtn:'Autopilot', pilotOn:'Autopilot ON', pilotOff:'Autopilot off', pilotNext:'Next auto-order', pilotEmpty:'No autopilot items — tap ✈️ on any reorder card!', pilotTitle:'Autopilot', pilotDone:'Autopilot order placed!',
+  fan1:'Fan', fan3:'Bronze fan', fan5:'Silver fan', fan10:'Gold fan', fanOf:'fan of',
+  wrapLimited:'Limited',
   secReorder:'Reorder essentials', secReorderSub:'Running low? One tap brings them back', reBought:'bought', reLow:'running low!',
 },
 hi:{
@@ -296,6 +299,9 @@ hi:{
   tipTitle:'राइडर को टिप दें', tipSend:'टिप भेजें', tipThanks:'टिप के लिए धन्यवाद!', tipTotal:'टिप मिली', tipCustom:'कस्टम',
   giftWrapFirst:'पहली डिलीवरी गिफ्ट-रैप करें', tipBoard:'टॉप टिप वाले राइडर',
   reCycle:'आमतौर पर चलता', reDays:'दिन', spotTitle:'महीने का राइडर', spotWhy:'आपके इलाके का सबसे रेटेड + सबसे टिप पाने वाला', wrapTitle:'रैप स्टाइल',
+  pilotBtn:'ऑटोपायलट', pilotOn:'ऑटोपायलट चालू', pilotOff:'ऑटोपायलट बंद', pilotNext:'अगला ऑटो-ऑर्डर', pilotEmpty:'कोई ऑटोपायलट आइटम नहीं — रीऑर्डर कार्ड पर ✈️ दबाएं!', pilotTitle:'ऑटोपायलट', pilotDone:'ऑटोपायलट ऑर्डर हो गया!',
+  fan1:'फैन', fan3:'ब्रॉन्ज फैन', fan5:'सिल्वर फैन', fan10:'गोल्ड फैन', fanOf:'के फैन',
+  wrapLimited:'लिमिटेड',
   secReorder:'फिर से मंगाएं', secReorderSub:'खत्म हो रहा? एक टैप में वापस पाएं', reBought:'बार खरीदा', reLow:'खत्म हो रहा!',
 }};
 
@@ -340,4 +346,18 @@ const GIFT_STYLES = [
   { id:'birthday', e:'🎂', add:10, en:'Birthday', hi:'जन्मदिन' },
   { id:'festival', e:'🪔', add:10, en:'Festival', hi:'त्योहार' },
   { id:'premium', e:'✨', add:49, en:'Premium', hi:'प्रीमियम' },
+];
+const SEASON_WRAPS = [
+  { m:0, id:'kite', e:'🪁', add:19, en:'Makar Glow', hi:'मकर ग्लो' },
+  { m:1, id:'love', e:'❤️', add:19, en:'Valentine', hi:'वैलेंटाइन' },
+  { m:2, id:'holi', e:'🎨', add:19, en:'Holi Burst', hi:'होली धमाका' },
+  { m:3, id:'harvest', e:'🌾', add:19, en:'Baisakhi Gold', hi:'बैसाखी गोल्ड' },
+  { m:4, id:'summer', e:'☀️', add:19, en:'Summer Pop', hi:'समर पॉप' },
+  { m:5, id:'monsoon', e:'🌧️', add:19, en:'Monsoon Mist', hi:'मानसून मिस्ट' },
+  { m:6, id:'peacock', e:'🦚', add:19, en:'Teej Royale', hi:'तीज रॉयल' },
+  { m:7, id:'tricolor', e:'🇮🇳', add:19, en:'Tricolor Pride', hi:'तिरंगा प्राइड' },
+  { m:8, id:'onam', e:'🌸', add:19, en:'Onam Bloom', hi:'ओणम ब्लूम' },
+  { m:9, id:'diwali', e:'🪔', add:29, en:'Diwali Luxe', hi:'दिवाली लक्स' },
+  { m:10, id:'marigold', e:'🌼', add:19, en:'Marigold Fest', hi:'गेंदा फेस्ट' },
+  { m:11, id:'xmas', e:'🎄', add:19, en:'Christmas Joy', hi:'क्रिसमस जॉय' },
 ];

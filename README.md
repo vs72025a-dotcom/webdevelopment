@@ -86,6 +86,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **🎀 Gift-wrap styles** — Classic / Birthday / Festival / Premium wraps with per-style pricing in the cart gift box and subscription gifts; style emoji + name on cards and tracking
 
+**✈️ Autopilot reorder** — one tap on any reorder card auto-reorders it on your learned cycle (5% off, calendar renewals, pause/cancel hub in Subscriptions)
+
+**🌟 Rider fan badges** — repeat tipping earns Fan → Bronze → Silver → Gold badges shown in tracking and on the rider spotlight
+
+**🪔 Seasonal wrap drop** — a limited-edition wrap style rotates every month (Diwali Luxe, Holi Burst, Christmas Joy…) in both gift pickers
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs

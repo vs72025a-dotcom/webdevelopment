@@ -64,6 +64,10 @@ let subs = LS.get('aw_subs_v1', []);
 const saveSubs = () => LS.set('aw_subs_v1', subs);
 let riderTips = LS.get('aw_tips_v1', {});
 const saveTips = () => LS.set('aw_tips_v1', riderTips);
+let tipCounts = LS.get('aw_tipcount_v1', {});
+const saveTipCounts = () => LS.set('aw_tipcount_v1', tipCounts);
+let pilots = LS.get('aw_pilot_v1', []);
+const savePilots = () => LS.set('aw_pilot_v1', pilots);
 let boxDraft = { name:'', items:{}, freq:14 };
 let subGiftId = null, giftDraft = { to:'', msg:'', startIn:7, wrap:false, occasion:0, wrapStyle:'classic' };
 let myRef = LS.get('aw_ref_v1', null);
@@ -359,7 +363,8 @@ function openSubs(){
   <p class="muted small" style="margin:-6px 0 10px">${t('boxSub')}</p>
   <div class="split-list" style="margin-bottom:14px">${boxes}</div>
   ${builderHTML()}
-  ${subs.length?`<div class="addr-head"><h4>🔁 ${t('subTitle')}</h4></div><div class="split-list">${rows}</div>`:`<div class="empty"><div class="big">🔁</div><p>${t('subEmpty')}</p></div>`}</div>`;
+  ${pilotHTML()}
+  ${subs.length?`<div class="addr-head"><h4>🔁 ${t('subTitle')}</h4></div><div class="split-list">${rows}</div>`:`<div class="empty"><div class="big">🔁</div><p>${t('subEmpty')}</p><p class="muted small">✈️ ${t('pilotEmpty')}</p></div>`}</div>`;
   openModal('subModal');
   $$('[data-boxsub]',box).forEach(b=>b.onclick=()=>{ addBox(b.dataset.boxsub); openSubs(); });
   bindBuilder(box);
@@ -375,6 +380,8 @@ function openSubs(){
   $$('[data-subpause]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subpause); if(s){ s.active=s.active===false?true:false; saveSubs(); cloudUp(); openSubs(); } });
   $$('[data-subdel]',box).forEach(b=>b.onclick=()=>{ subs=subs.filter(x=>x.id!==b.dataset.subdel); saveSubs(); cloudUp(); openSubs(); });
   $$('[data-subgift]',box).forEach(b=>b.onclick=()=>{ subGiftId=b.dataset.subgift; giftDraft={to:'',msg:'',startIn:7,wrap:false,occasion:0,wrapStyle:'classic'}; openSubs(); });
+  $$('[data-pilotpause]',box).forEach(b=>b.onclick=()=>{ const a=pilots.find(x=>x.id===b.dataset.pilotpause); if(a){ a.active=a.active===false?true:false; if(a.active) a.nextTs=Date.now()+a.cycle*864e5; savePilots(); cloudUp(); openSubs(); } });
+  $$('[data-pilotdel]',box).forEach(b=>b.onclick=()=>{ pilots=pilots.filter(x=>x.id!==b.dataset.pilotdel); savePilots(); cloudUp(); openSubs(); });
 }
 function applyReferral(code){
   code = String(code||'').trim().toUpperCase().replace(/^AW-/,'');
@@ -528,7 +535,7 @@ function giftFormHTML(){
     <div class="coupon-box"><input id="giftMsg" maxlength="80" placeholder="${t('giftMsgPh')}" value="${esc(giftDraft.msg)}"/></div>
     <div class="toggle-row" style="border:none;padding:8px 0"><span>🎁 ${t('giftWrapFirst')} <b>+ ${fmt(GIFT_FEE)}</b></span><label class="switch"><input type="checkbox" id="giftWrapOn" ${giftDraft.wrap?'checked':''}/><span class="slider"></span></label></div>
     ${giftDraft.wrap?`<div class="coupon-box"><select id="giftOcc">${GIFT_OCCASIONS.map((o,i)=>`<option value="${i}" ${giftDraft.occasion==i?'selected':''}>${HI()?o.hi:o.en}</option>`).join('')}</select></div>`:''}
-    ${giftDraft.wrap?`<small class="muted">${t('wrapTitle')}</small><div class="slot-pills" style="margin:6px 0 10px">${GIFT_STYLES.map(st=>`<button class="slot-pill ${(giftDraft.wrapStyle||'classic')===st.id?'sel':''}" data-gwstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}</small></button>`).join('')}</div>`:''}
+    ${giftDraft.wrap?`<small class="muted">${t('wrapTitle')}</small><div class="slot-pills" style="margin:6px 0 10px">${allWrapStyles().map(st=>`<button class="slot-pill ${(giftDraft.wrapStyle||'classic')===st.id?'sel':''}" data-gwstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}${st.m!==undefined?` • ${t('wrapLimited')}`:''}</small></button>`).join('')}</div>`:''}
     <small class="muted">${t('giftStart')}</small>
     <div class="slot-pills" style="margin:6px 0 10px">${[1,3,7,30].map(d=>`<button class="slot-pill ${giftDraft.startIn==d?'sel':''}" data-gstart="${d}">${giftStartLabel(d)}</button>`).join('')}</div>
     <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1" id="giftSave">🎁 ${t('giftSave')}</button><button class="btn ghost" id="giftCancel">${t('giftCancel')}</button></div></div>`;
@@ -548,7 +555,8 @@ function tipRider(o, amt){
   o.tip = Math.round(amt);
   const r = riderFor(o);
   riderTips[r.name] = (riderTips[r.name]||0) + o.tip;
-  saveTips(); saveOrders(); cloudUp();
+  tipCounts[r.name] = (tipCounts[r.name]||0) + 1;
+  saveTips(); saveTipCounts(); saveOrders(); cloudUp();
   notify(`💰 ${t('tipThanks')}`, `${r.name} • ${fmt(o.tip)} 🙏`, '💰');
   return true;
 }
@@ -561,6 +569,66 @@ function tipBoardHTML(o){
   const medals = ['🥇','🥈','🥉'];
   return `<div class="addr-head" style="margin-top:12px"><h4>🏆 ${t('tipBoard')}</h4></div>
   <div class="lb-list">${rows.map((r,i)=>`<div class="lb-row${r.n===me?' you':''}"><span>${medals[i]||`${i+1}.`}</span><b style="flex:1">🛵 ${esc(r.n)}</b><span>${fmt(r.pts)}</span></div>`).join('')}</div>`;
+}
+function allWrapStyles(){ const sw = SEASON_WRAPS[new Date().getMonth()] || null; return sw ? GIFT_STYLES.concat([sw]) : GIFT_STYLES.slice(); }
+function seasonWrap(){ return SEASON_WRAPS[new Date().getMonth()] || null; }
+function lastQty(pid){
+  const rev = [...(orders||[])].reverse();
+  for(const o of rev){ const it = (o.items||[]).find(i=>i.id===pid); if(it && it.qty) return it.qty; }
+  return 1;
+}
+function pilotFor(pid){ return pilots.find(a=>a.pid===pid); }
+function togglePilot(pid){
+  const p = getP(pid); if(!p) return null;
+  let a = pilotFor(pid);
+  if(a && a.active !== false){ a.active = false; savePilots(); cloudUp(); preserveRender(); return a; }
+  const cycle = learnedCycle(pid) || (p.v==='food' ? 7 : 14);
+  if(a){ a.active = true; a.cycle = cycle; a.qty = lastQty(pid); a.nextTs = Date.now()+cycle*864e5; }
+  else { a = { id:uid('AP'), pid, qty:lastQty(pid), cycle, nextTs:Date.now()+cycle*864e5, active:true, createdAt:Date.now() }; pilots.push(a); }
+  savePilots(); cloudUp();
+  notify('✈️ '+t('pilotOn'), `${p.e} ${p.n} • ~${cycle} ${t('reDays')}`, '✈️');
+  preserveRender();
+  return a;
+}
+function fulfillPilot(){
+  let made = 0;
+  pilots.forEach(a=>{
+    if(!a || a.active===false || (a.nextTs||0) > Date.now()) return;
+    const p = getP(a.pid); if(!p) return;
+    const addr = addrs[0] ? { name:addrs[0].name, phone:addrs[0].phone, line:addrs[0].line, city:addrs[0].city, pin:addrs[0].pin }
+      : { name:(user&&user.name)||'Subscriber', phone:(user&&user.phone)||'', line:'', city:location.n, pin:location.pin };
+    const sub = p.p*a.qty, disc = Math.round(sub*SUB_SAVE_PCT/100);
+    const cm = settings.commerce;
+    const del = (sub-disc) >= cm.freeAbove ? 0 : cm.deliveryFee;
+    const tax = Math.max(0,sub-disc)*cm.taxPct/100;
+    const total = Math.max(0, Math.round(sub-disc+del+tax));
+    const o = { id:uid('AW').toUpperCase(), items:[{id:p.id,qty:a.qty,price:p.p}], total, sub, discount:disc,
+      status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
+      addr, pay:'Autopilot ✈️', upi:'', placedAt:Date.now(), slot:{}, gift:null, rating:null, pilotId:a.id };
+    orders.push(o); made++;
+    a.nextTs = Date.now()+a.cycle*864e5;
+    const earn = loyEarnFor(total);
+    if(earn>0) loyAdd(earn, `✈️ ${HI()?'ऑटोपायलट':'Autopilot'} #${o.id}`);
+    notify('✈️ '+t('pilotDone'), `#${o.id} • ${fmt(o.total)}`, '✈️');
+  });
+  if(made){ savePilots(); saveOrders(); cloudUp(); }
+  return made;
+}
+function fanBadge(name){
+  const n = tipCounts[name]||0;
+  if(n>=10) return `🥇 ${t('fan10')}`;
+  if(n>=5) return `🥈 ${t('fan5')}`;
+  if(n>=3) return `🥉 ${t('fan3')}`;
+  if(n>=1) return `⭐ ${t('fan1')}`;
+  return '';
+}
+function pilotHTML(){
+  if(!pilots.length) return '';
+  return `<div class="addr-head"><h4>✈️ ${t('pilotTitle')}</h4></div><div class="split-list" style="margin-bottom:14px">${pilots.map(a=>{
+    const p = getP(a.pid); const nm = p?`${p.e} ${p.n}`:'';
+    const paused = a.active===false;
+    return `<div class="split-row"><div style="flex:1"><b>${esc(nm)} × ${a.qty}</b><br/><small class="muted">~${a.cycle} ${t('reDays')} • ${t('pilotNext')}: ${new Date(a.nextTs).toLocaleDateString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'})}</small><br/><span class="status ${paused?'st-placed':'st-delivered'}" style="font-size:11px">${paused?t('subPaused'):t('subActive')}</span></div>
+    <div class="sub-btns"><button class="btn secondary sm" data-pilotpause="${a.id}">${paused?'▶ '+t('subResume'):t('subPause')}</button><button class="btn danger-ghost sm" data-pilotdel="${a.id}">✕</button></div></div>`; }).join('')}</div>`;
 }
 function reorderSuggestions(){
   const byPid = {};
@@ -587,10 +655,10 @@ function reorderHTML(){
   return `<section class="section"><div class="sec-head"><div><h2>🔄 ${t('secReorder')}</h2><p>${t('secReorderSub')}</p></div></div>
   <div class="reorder-row">${list.map(s=>`<div class="reorder-card"><span class="ce ${s.p.g}" data-open="${s.p.id}">${mediaHTML(s.p)}</span>
     <div style="flex:1"><b class="small">${esc(s.p.n)}</b><br/><small class="muted">${s.times}× ${t('reBought')} • ${timeAgo(Date.now()-s.days*864e5)}</small>${s.learned?`<br/><small class="muted">🔁 ${t('reCycle')} ~${s.cycle} ${t('reDays')}</small>`:''}${s.low?`<br/><span class="status st-placed" style="font-size:10px">⚠️ ${t('reLow')}</span>`:''}</div>
-    <button class="btn primary sm" data-inc="${s.p.id}">${t('addBtn')}</button></div>`).join('')}</div></section>`;
+    <div style="display:flex;flex-direction:column;gap:6px"><button class="btn primary sm" data-inc="${s.p.id}">${t('addBtn')}</button><button class="btn ${((pilotFor(s.p.id)||{}).active!==false&&pilotFor(s.p.id))?'secondary':'ghost'} sm" data-pilot="${s.p.id}" title="${t('pilotBtn')}">✈️ ${((pilotFor(s.p.id)||{}).active!==false&&pilotFor(s.p.id))?'✓':'+'}</button></div></div>`).join('')}</div></section>`;
 }
-function giftStyleName(id){ const st = GIFT_STYLES.find(x=>x.id===id) || GIFT_STYLES[0]; return HI()?st.hi:st.en; }
-function giftStyleFee(id){ const st = GIFT_STYLES.find(x=>x.id===id); return GIFT_FEE + (st?st.add:0); }
+function giftStyleName(id){ const st = allWrapStyles().find(x=>x.id===id) || GIFT_STYLES[0]; return HI()?st.hi:st.en; }
+function giftStyleFee(id){ const st = allWrapStyles().find(x=>x.id===id); return GIFT_FEE + (st?st.add:0); }
 function learnedCycle(pid){
   const ts = [];
   (orders||[]).forEach(o=>{ if(o.placedAt && (o.items||[]).some(i=>i.id===pid)) ts.push(o.placedAt); });
@@ -617,12 +685,12 @@ function spotlightHTML(){
   const r = riderSpotlight(); if(!r) return '';
   const month = new Date().toLocaleDateString(HI()?'hi-IN':'en-IN',{month:'long'});
   return `<section class="section"><div class="sec-head"><div><h2>🌟 ${t('spotTitle')} — ${month}</h2><p>${t('spotWhy')}</p></div></div>
-  <div class="spot-card"><span class="spot-ava">🛵</span><div style="flex:1"><b style="font-size:18px">${esc(r.name)}</b> <span class="status st-delivered">★ ${r.avg}</span><br/><small class="muted">💰 ${fmt(r.tips)} ${t('tipTotal')} • 📍 ${esc(location.n)}</small></div><span style="font-size:34px">🏆</span></div></section>`;
+  <div class="spot-card"><span class="spot-ava">🛵</span><div style="flex:1"><b style="font-size:18px">${esc(r.name)}</b> <span class="status st-delivered">★ ${r.avg}</span><br/><small class="muted">💰 ${fmt(r.tips)} ${t('tipTotal')} • 📍 ${esc(location.n)}</small>${fanBadge(r.name)?`<br/><small>🌟 ${fanBadge(r.name)} ${t('fanOf')} ${esc(r.name)}</small>`:''}</div><span style="font-size:34px">🏆</span></div></section>`;
 }
 function tipHTML(o){
   if(!o || o.status!==4) return '';
   const r = riderFor(o);
-  if(o.tip) return `<div class="rev"><b>💰 ${t('tipThanks')}</b><p>${r.name} • ${fmt(o.tip)} 🙏 • ${fmt(riderTips[r.name]||o.tip)} ${t('tipTotal')}</p>${tipBoardHTML(o)}</div>`;
+  if(o.tip) return `<div class="rev"><b>💰 ${t('tipThanks')}</b>${fanBadge(r.name)?` <span class="status st-delivered">${fanBadge(r.name)}</span>`:''}<p>${r.name} • ${fmt(o.tip)} 🙏 • ${fmt(riderTips[r.name]||o.tip)} ${t('tipTotal')}</p>${tipBoardHTML(o)}</div>`;
   return `<div class="rev"><b>💰 ${t('tipTitle')} — ${r.name}</b>
     <div class="slot-pills" style="margin:10px 0">${TIP_AMOUNTS.map(a=>`<button class="slot-pill" data-tipamt="${a}">${fmt(a)}</button>`).join('')}</div>
     <div class="coupon-box"><input id="tipCustom" type="number" min="1" max="1000" placeholder="${t('tipCustom')} (₹)"/><button class="btn primary sm" id="tipSend">${t('tipSend')}</button></div>${tipBoardHTML(o)}</div>`;
@@ -652,6 +720,10 @@ function orderEvents(){
     (subs||[]).forEach(s=>{
       if(!s || s.active===false) return;
       for(let k=0;k<2;k++) evs.push({ d:isoDay((s.nextTs||Date.now())+k*(s.freq||30)*864e5), type:'sub', o:{ id:s.id, total:0, items:subItems(s).map(i=>({id:i.pid,qty:i.qty})), addr:{city:''} } });
+    });
+    (pilots||[]).forEach(a=>{
+      if(!a || a.active===false) return;
+      for(let k=0;k<2;k++) evs.push({ d:isoDay((a.nextTs||Date.now())+k*(a.cycle||14)*864e5), type:'sub', o:{ id:a.id, total:0, items:[{id:a.pid,qty:a.qty}], addr:{city:''} } });
     });
   }catch{}
   orders.forEach(o=>{
@@ -834,6 +906,7 @@ function bindCards(root=document){
   $$('[data-inc]', root).forEach(el => el.onclick = e => { e.stopPropagation(); setQty(el.dataset.inc, (cart[el.dataset.inc]||0)+1); });
   $$('[data-dec]', root).forEach(el => el.onclick = e => { e.stopPropagation(); setQty(el.dataset.dec, (cart[el.dataset.dec]||0)-1); });
   $$('[data-wish]', root).forEach(el => el.onclick = e => { e.stopPropagation(); toggleWish(el.dataset.wish); });
+  $$('[data-pilot]', root).forEach(el => el.onclick = e => { e.stopPropagation(); togglePilot(el.dataset.pilot); });
 }
 
 /* ============================================================
@@ -994,10 +1067,11 @@ function orderCardHTML(o){
     <span class="status st-${['placed','preparing','shipped','out','delivered'][o.status]}">${statusName(o.status)}</span></div>
     <div class="order-items">${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join('')}${o.gift?'🎁':''}</div>
     <div class="order-meta"><span>🧾 ${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')}</span><span>💰 ${fmt(o.total)}</span><span>📅 ${o.date}</span><span>📍 ${esc(o.addr.city||location.n)}</span>
-    ${sum?`<span>🕐 ${esc(sum)}</span>`:''}${o.gift?`<span>${((GIFT_STYLES.find(x=>x.id===(o.gift.style||'classic'))||{}).e||'🎁')} ${esc(occName(o.gift.occasion))}</span>`:''}
+    ${sum?`<span>🕐 ${esc(sum)}</span>`:''}${o.gift?`<span>${((allWrapStyles().find(x=>x.id===(o.gift.style||'classic'))||{}).e||'🎁')} ${esc(occName(o.gift.occasion))}</span>`:''}
     ${o.scheduledFor?`<span>⏰ ${esc(schedLabel(o.scheduledFor))}${schedCountdown(o.scheduledFor)?` • ${esc(schedCountdown(o.scheduledFor))}`:''}</span>`:''}
     ${o.splitCount?`<span>📦 ${o.splitIdx} ${t('splitOf')} ${o.splitCount} ${t('splitShip')}</span>`:''}
     ${o.subId?`<span>🔁 ${t('subBtn')}</span>`:''}
+    ${o.pilotId?`<span>✈️ ${t('pilotTitle')}</span>`:''}
     ${o.proof?`<span>📸 ${t('proofTitle')}</span>`:''}
     ${o.tip?`<span>💰 ${fmt(o.tip)}</span>`:''}
     ${o.rating?`<span style="color:#f59e0b">★ ${o.rating.stars}</span>`:''}</div>
@@ -1274,7 +1348,7 @@ function giftBoxHTML(){
   return `<div class="gift-box">
     <div class="toggle-row" style="border:none;padding:0"><span>🎁 ${t('giftWrap')} <b>+ ${fmt(GIFT_FEE)}</b></span><label class="switch"><input type="checkbox" id="giftOn" ${gift.on?'checked':''}/><span class="slider"></span></label></div>
     ${gift.on?`<div class="gift-row"><select id="giftOcc">${GIFT_OCCASIONS.map((o,i)=>`<option value="${i}" ${gift.occasion==i?'selected':''}>${HI()?o.hi:o.en}</option>`).join('')}</select></div>
-    <div class="gift-row"><small class="muted">${t('wrapTitle')}</small><div class="slot-pills">${GIFT_STYLES.map(st=>`<button class="slot-pill ${(gift.style||'classic')===st.id?'sel':''}" data-gstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}</small></button>`).join('')}</div></div>
+    <div class="gift-row"><small class="muted">${t('wrapTitle')}</small><div class="slot-pills">${allWrapStyles().map(st=>`<button class="slot-pill ${(gift.style||'classic')===st.id?'sel':''}" data-gstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}${st.m!==undefined?` • ${t('wrapLimited')}`:''}</small></button>`).join('')}</div></div>
     <textarea id="giftMsg" maxlength="140" placeholder="${t('giftMsgPh')}">${esc(gift.msg)}</textarea>
     <label class="f-check"><input type="checkbox" id="giftHide" ${gift.hide?'checked':''}/> ${t('giftHide')}</label>`:''}
   </div>`;
@@ -1910,7 +1984,7 @@ function tickSim(){
         done?'💰':'↩');
     }
   });
-  const madeSubs = fulfillSubs();
+  const madeSubs = fulfillSubs() + fulfillPilot();
   if(moved || madeSubs){ saveOrders(); cloudUp(); if(route.page==='orders') renderPage(); }
 }
 setInterval(tickSim, 25000);
@@ -2287,7 +2361,7 @@ function bindCustomizer(tab){
   }
 }
 function exportData(){
-  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, customBanners, loyalty, subs, exportedAt:new Date().toISOString() };
+  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, customBanners, loyalty, subs, pilots, exportedAt:new Date().toISOString() };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download = 'anywhere-anything-backup.json'; a.click();
@@ -2433,6 +2507,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(d.customBanners){ customBanners=d.customBanners; saveBanners(); }
       if(d.loyalty){ loyalty=Object.assign({pts:0,hist:[],updatedAt:0},d.loyalty); saveLoyalty(); }
       if(d.subs){ subs=d.subs; saveSubs(); }
+      if(d.pilots){ pilots=d.pilots; savePilots(); }
       renderAll(); renderCustomizer('store'); toast('Backup restored!','💾');
     }catch{ toast('Invalid backup file','⚠️'); } };
     rd.readAsText(f); e.target.value='';
