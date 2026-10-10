@@ -80,6 +80,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **🔄 Smart reorder shelf** — home section that notices food/grocery you haven't ordered in a while ("running low!"), sorted by need, one-tap add; toggleable in Customize → Homepage
 
+**🔁 Consumption-aware cycles** — learns your median reorder gap per product ("usually lasts ~7 days") from history and personalizes reorder timing
+
+**🌟 Rider of the month** — home spotlight combining community tips + your tips + ratings, with month label and live updates; toggleable section
+
+**🎀 Gift-wrap styles** — Classic / Birthday / Festival / Premium wraps with per-style pricing in the cart gift box and subscription gifts; style emoji + name on cards and tracking
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs

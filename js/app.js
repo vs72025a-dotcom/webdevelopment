@@ -38,7 +38,7 @@ let myReviews = LS.get('aw_reviews_v1', {});
 let addrs = LS.get('aw_addrs_v1', []);
 let notifs = LS.get('aw_notifs_v1', []);
 let pushOn = LS.get('aw_push_v1', false);
-let gift = Object.assign({ on:false, msg:'', occasion:0, hide:false }, LS.get('aw_gift_v1', {}));
+let gift = Object.assign({ on:false, msg:'', occasion:0, hide:false, style:'classic' }, LS.get('aw_gift_v1', {}));
 let riderRatings = LS.get('aw_rider_ratings_v1', {});
 let customBanners = LS.get('aw_banners_v1', null);
 let rzpKey = LS.get('aw_rzp_v1', '');
@@ -65,7 +65,7 @@ const saveSubs = () => LS.set('aw_subs_v1', subs);
 let riderTips = LS.get('aw_tips_v1', {});
 const saveTips = () => LS.set('aw_tips_v1', riderTips);
 let boxDraft = { name:'', items:{}, freq:14 };
-let subGiftId = null, giftDraft = { to:'', msg:'', startIn:7, wrap:false, occasion:0 };
+let subGiftId = null, giftDraft = { to:'', msg:'', startIn:7, wrap:false, occasion:0, wrapStyle:'classic' };
 let myRef = LS.get('aw_ref_v1', null);
 if(!myRef || !myRef.code){
   myRef = { code:'AW-' + Array.from({length:6},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join(''), used:null, count:0 };
@@ -326,7 +326,7 @@ function fulfillSubs(){
       status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
       addr, pay:'Subscription 🔁', upi:'', placedAt:Date.now(), slot:{}, gift:null, rating:null, subId:s.id };
     orders.push(o); made.push(o);
-    if(s.gift){ o.giftMsg = s.gift.msg||''; if(s.gift.wrap){ o.gift = { on:true, msg:s.gift.msg||'', occasion:s.gift.occasion||0, hide:false }; o.total = Math.max(0,o.total+GIFT_FEE); } notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}${s.gift.msg?': \u201c'+s.gift.msg+'\u201d':''}`, '🎁'); s.gift = null; }
+    if(s.gift){ o.giftMsg = s.gift.msg||''; if(s.gift.wrap){ o.gift = { on:true, msg:s.gift.msg||'', occasion:s.gift.occasion||0, hide:false, style:s.gift.wrapStyle||'classic' }; o.total = Math.max(0,o.total+giftStyleFee(s.gift.wrapStyle)); } notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}${s.gift.msg?': \u201c'+s.gift.msg+'\u201d':''}`, '🎁'); s.gift = null; }
     s.nextTs = Date.now()+s.freq*864e5;
     const earn = loyEarnFor(o.total);
     if(earn>0) loyAdd(earn, `🔁 ${HI()?'सब्सक्रिप्शन':'Subscription'} #${o.id}`);
@@ -368,12 +368,13 @@ function openSubs(){
   $$('[data-gstart]',box).forEach(b=>b.onclick=()=>{ giftDraft.startIn = +b.dataset.gstart; openSubs(); });
   const gw = $('#giftWrapOn'); if(gw) gw.onchange = ()=>{ giftDraft.wrap = gw.checked; openSubs(); };
   const go2 = $('#giftOcc'); if(go2) go2.onchange = ()=>{ giftDraft.occasion = +go2.value; };
+  $$('[data-gwstyle]',box).forEach(b=>b.onclick=()=>{ giftDraft.wrapStyle = b.dataset.gwstyle; openSubs(); });
   const gs = $('#giftSave'); if(gs) gs.onclick = saveGiftSub;
   const gc = $('#giftCancel'); if(gc) gc.onclick = ()=>{ subGiftId=null; openSubs(); };
   $$('[data-subskip]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subskip); if(s){ s.nextTs=Date.now()+s.freq*864e5; saveSubs(); cloudUp(); openSubs(); toast(t('subNext')+': '+new Date(s.nextTs).toLocaleDateString(),'⏭'); } });
   $$('[data-subpause]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subpause); if(s){ s.active=s.active===false?true:false; saveSubs(); cloudUp(); openSubs(); } });
   $$('[data-subdel]',box).forEach(b=>b.onclick=()=>{ subs=subs.filter(x=>x.id!==b.dataset.subdel); saveSubs(); cloudUp(); openSubs(); });
-  $$('[data-subgift]',box).forEach(b=>b.onclick=()=>{ subGiftId=b.dataset.subgift; giftDraft={to:'',msg:'',startIn:7,wrap:false,occasion:0}; openSubs(); });
+  $$('[data-subgift]',box).forEach(b=>b.onclick=()=>{ subGiftId=b.dataset.subgift; giftDraft={to:'',msg:'',startIn:7,wrap:false,occasion:0,wrapStyle:'classic'}; openSubs(); });
 }
 function applyReferral(code){
   code = String(code||'').trim().toUpperCase().replace(/^AW-/,'');
@@ -527,6 +528,7 @@ function giftFormHTML(){
     <div class="coupon-box"><input id="giftMsg" maxlength="80" placeholder="${t('giftMsgPh')}" value="${esc(giftDraft.msg)}"/></div>
     <div class="toggle-row" style="border:none;padding:8px 0"><span>🎁 ${t('giftWrapFirst')} <b>+ ${fmt(GIFT_FEE)}</b></span><label class="switch"><input type="checkbox" id="giftWrapOn" ${giftDraft.wrap?'checked':''}/><span class="slider"></span></label></div>
     ${giftDraft.wrap?`<div class="coupon-box"><select id="giftOcc">${GIFT_OCCASIONS.map((o,i)=>`<option value="${i}" ${giftDraft.occasion==i?'selected':''}>${HI()?o.hi:o.en}</option>`).join('')}</select></div>`:''}
+    ${giftDraft.wrap?`<small class="muted">${t('wrapTitle')}</small><div class="slot-pills" style="margin:6px 0 10px">${GIFT_STYLES.map(st=>`<button class="slot-pill ${(giftDraft.wrapStyle||'classic')===st.id?'sel':''}" data-gwstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}</small></button>`).join('')}</div>`:''}
     <small class="muted">${t('giftStart')}</small>
     <div class="slot-pills" style="margin:6px 0 10px">${[1,3,7,30].map(d=>`<button class="slot-pill ${giftDraft.startIn==d?'sel':''}" data-gstart="${d}">${giftStartLabel(d)}</button>`).join('')}</div>
     <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1" id="giftSave">🎁 ${t('giftSave')}</button><button class="btn ghost" id="giftCancel">${t('giftCancel')}</button></div></div>`;
@@ -534,11 +536,11 @@ function giftFormHTML(){
 function saveGiftSub(){
   const s = subs.find(x=>x.id===subGiftId); if(!s) return;
   const startTs = Date.now()+giftDraft.startIn*864e5;
-  s.gift = { to:giftDraft.to.trim()||'🎁', msg:giftDraft.msg.trim(), startTs, wrap:!!giftDraft.wrap, occasion:giftDraft.occasion||0 };
+  s.gift = { to:giftDraft.to.trim()||'🎁', msg:giftDraft.msg.trim(), startTs, wrap:!!giftDraft.wrap, occasion:giftDraft.occasion||0, wrapStyle:giftDraft.wrapStyle||'classic' };
   s.nextTs = startTs;
   saveSubs(); cloudUp();
   notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}`, '🎁');
-  subGiftId = null; giftDraft = { to:'', msg:'', startIn:7, wrap:false, occasion:0 };
+  subGiftId = null; giftDraft = { to:'', msg:'', startIn:7, wrap:false, occasion:0, wrapStyle:'classic' };
   openSubs();
 }
 function tipRider(o, amt){
@@ -571,10 +573,11 @@ function reorderSuggestions(){
   const out = [];
   Object.entries(byPid).forEach(e=>{
     const p = getP(e[0]); if(!p) return;
-    const cycle = p.v==='food' ? 7 : 14;
+    const learned = learnedCycle(e[0]);
+    const cycle = learned || (p.v==='food' ? 7 : 14);
     const days = (Date.now()-e[1].last)/864e5;
     if(days < cycle*0.5) return;
-    out.push({ p, days, times:e[1].times, low:days>=cycle });
+    out.push({ p, days, times:e[1].times, low:days>=cycle, cycle, learned:!!learned });
   });
   return out.sort((a,b)=>b.days-a.days).slice(0,8);
 }
@@ -583,8 +586,38 @@ function reorderHTML(){
   if(!list.length) return '';
   return `<section class="section"><div class="sec-head"><div><h2>🔄 ${t('secReorder')}</h2><p>${t('secReorderSub')}</p></div></div>
   <div class="reorder-row">${list.map(s=>`<div class="reorder-card"><span class="ce ${s.p.g}" data-open="${s.p.id}">${mediaHTML(s.p)}</span>
-    <div style="flex:1"><b class="small">${esc(s.p.n)}</b><br/><small class="muted">${s.times}× ${t('reBought')} • ${timeAgo(Date.now()-s.days*864e5)}</small>${s.low?`<br/><span class="status st-placed" style="font-size:10px">⚠️ ${t('reLow')}</span>`:''}</div>
+    <div style="flex:1"><b class="small">${esc(s.p.n)}</b><br/><small class="muted">${s.times}× ${t('reBought')} • ${timeAgo(Date.now()-s.days*864e5)}</small>${s.learned?`<br/><small class="muted">🔁 ${t('reCycle')} ~${s.cycle} ${t('reDays')}</small>`:''}${s.low?`<br/><span class="status st-placed" style="font-size:10px">⚠️ ${t('reLow')}</span>`:''}</div>
     <button class="btn primary sm" data-inc="${s.p.id}">${t('addBtn')}</button></div>`).join('')}</div></section>`;
+}
+function giftStyleName(id){ const st = GIFT_STYLES.find(x=>x.id===id) || GIFT_STYLES[0]; return HI()?st.hi:st.en; }
+function giftStyleFee(id){ const st = GIFT_STYLES.find(x=>x.id===id); return GIFT_FEE + (st?st.add:0); }
+function learnedCycle(pid){
+  const ts = [];
+  (orders||[]).forEach(o=>{ if(o.placedAt && (o.items||[]).some(i=>i.id===pid)) ts.push(o.placedAt); });
+  ts.sort((a,b)=>a-b);
+  if(ts.length < 2) return 0;
+  const gaps = [];
+  for(let k=1;k<ts.length;k++) gaps.push(ts[k]-ts[k-1]);
+  gaps.sort((a,b)=>a-b);
+  return Math.max(2, Math.min(60, Math.round(gaps[Math.floor(gaps.length/2)]/864e5)));
+}
+function riderSpotlight(){
+  const scores = {};
+  TIP_BOARD.forEach(r=>{ scores[r.n] = scores[r.n]||{tips:0}; scores[r.n].tips += r.pts; });
+  Object.entries(riderTips).forEach(e=>{ scores[e[0]] = scores[e[0]]||{tips:0}; scores[e[0]].tips += e[1]; });
+  let best = null;
+  Object.entries(scores).forEach(e=>{
+    const avg = parseFloat(riderAvg(e[0])) || 0;
+    const score = e[1].tips + avg*20;
+    if(!best || score > best.score) best = { name:e[0], tips:e[1].tips, avg:avg.toFixed(1), score };
+  });
+  return best;
+}
+function spotlightHTML(){
+  const r = riderSpotlight(); if(!r) return '';
+  const month = new Date().toLocaleDateString(HI()?'hi-IN':'en-IN',{month:'long'});
+  return `<section class="section"><div class="sec-head"><div><h2>🌟 ${t('spotTitle')} — ${month}</h2><p>${t('spotWhy')}</p></div></div>
+  <div class="spot-card"><span class="spot-ava">🛵</span><div style="flex:1"><b style="font-size:18px">${esc(r.name)}</b> <span class="status st-delivered">★ ${r.avg}</span><br/><small class="muted">💰 ${fmt(r.tips)} ${t('tipTotal')} • 📍 ${esc(location.n)}</small></div><span style="font-size:34px">🏆</span></div></section>`;
 }
 function tipHTML(o){
   if(!o || o.status!==4) return '';
@@ -881,6 +914,8 @@ function homeHTML(){
   if(S.testimonials) h += `<section class="section"><div class="sec-head"><div><h2>💬 ${t('secLoved')}</h2><p>${t('secLovedSub')}</p></div></div>
     <div class="testi-grid">${TESTIMONIALS.map(x=>`<div class="testi"><div class="stars">${'★'.repeat(x.s)}${'☆'.repeat(5-x.s)}</div><p>"${x.t}"</p><div class="who"><span class="ava">${x.e}</span><div><b>${x.n}</b><small>${x.c} • Verified buyer</small></div></div></div>`).join('')}</div></section>`;
 
+  if(S.spotlight) h += spotlightHTML();
+
   return h;
 }
 
@@ -959,7 +994,7 @@ function orderCardHTML(o){
     <span class="status st-${['placed','preparing','shipped','out','delivered'][o.status]}">${statusName(o.status)}</span></div>
     <div class="order-items">${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join('')}${o.gift?'🎁':''}</div>
     <div class="order-meta"><span>🧾 ${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')}</span><span>💰 ${fmt(o.total)}</span><span>📅 ${o.date}</span><span>📍 ${esc(o.addr.city||location.n)}</span>
-    ${sum?`<span>🕐 ${esc(sum)}</span>`:''}${o.gift?`<span>🎁 ${esc(occName(o.gift.occasion))}</span>`:''}
+    ${sum?`<span>🕐 ${esc(sum)}</span>`:''}${o.gift?`<span>${((GIFT_STYLES.find(x=>x.id===(o.gift.style||'classic'))||{}).e||'🎁')} ${esc(occName(o.gift.occasion))}</span>`:''}
     ${o.scheduledFor?`<span>⏰ ${esc(schedLabel(o.scheduledFor))}${schedCountdown(o.scheduledFor)?` • ${esc(schedCountdown(o.scheduledFor))}`:''}</span>`:''}
     ${o.splitCount?`<span>📦 ${o.splitIdx} ${t('splitOf')} ${o.splitCount} ${t('splitShip')}</span>`:''}
     ${o.subId?`<span>🔁 ${t('subBtn')}</span>`:''}
@@ -1208,7 +1243,7 @@ function cartTotals(){
   if(freeDel || (sub-discount) >= cm.freeAbove || !items.length) del = 0;
   const hasShip = items.some(i=>!['food','services'].includes(i.p.v));
   const expFee = (coState.slot.speed==='express' && hasShip && items.length) ? EXPRESS_FEE : 0;
-  const giftFee = (gift.on && items.length) ? GIFT_FEE : 0;
+  const giftFee = (gift.on && items.length) ? giftStyleFee(gift.style) : 0;
   const tax = Math.max(0,(sub-discount)) * cm.taxPct/100;
   const preRedeem = Math.max(0, sub-discount+del+expFee+giftFee+tax);
   const redeem = loyRedeemable(preRedeem);
@@ -1239,6 +1274,7 @@ function giftBoxHTML(){
   return `<div class="gift-box">
     <div class="toggle-row" style="border:none;padding:0"><span>🎁 ${t('giftWrap')} <b>+ ${fmt(GIFT_FEE)}</b></span><label class="switch"><input type="checkbox" id="giftOn" ${gift.on?'checked':''}/><span class="slider"></span></label></div>
     ${gift.on?`<div class="gift-row"><select id="giftOcc">${GIFT_OCCASIONS.map((o,i)=>`<option value="${i}" ${gift.occasion==i?'selected':''}>${HI()?o.hi:o.en}</option>`).join('')}</select></div>
+    <div class="gift-row"><small class="muted">${t('wrapTitle')}</small><div class="slot-pills">${GIFT_STYLES.map(st=>`<button class="slot-pill ${(gift.style||'classic')===st.id?'sel':''}" data-gstyle="${st.id}">${st.e} ${HI()?st.hi:st.en}<small>${fmt(GIFT_FEE+st.add)}</small></button>`).join('')}</div></div>
     <textarea id="giftMsg" maxlength="140" placeholder="${t('giftMsgPh')}">${esc(gift.msg)}</textarea>
     <label class="f-check"><input type="checkbox" id="giftHide" ${gift.hide?'checked':''}/> ${t('giftHide')}</label>`:''}
   </div>`;
@@ -1274,6 +1310,7 @@ function renderCart(){
   if(gMsg) gMsg.oninput = ()=>{ gift.msg = gMsg.value; saveGift(); };
   const gHide = $('#giftHide',box);
   if(gHide) gHide.onchange = ()=>{ gift.hide = gHide.checked; saveGift(); };
+  $$('[data-gstyle]',box).forEach(b=>b.onclick=()=>{ gift.style = b.dataset.gstyle; saveGift(); renderCart(); });
   foot.innerHTML = `
     <div class="coupon-box"><input id="couponInput" placeholder="${t('couponPh')}" value="${activeCoupon||''}"/><button class="btn secondary sm" id="couponApply">${activeCoupon?t('remove'):t('apply')}</button></div>
     ${tt.discount?`<div class="bill-row"><span>${t('couponLbl')} (${activeCoupon})</span><span class="off">− ${fmt(tt.discount)}</span></div>`:''}
@@ -1757,7 +1794,7 @@ function openTrack(id){
     <div class="track-steps" style="margin:8px 0 14px">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
     <div class="rev"><b>🛵 ${t('mapRider')}: ${rider.name} • ★ ${riderAvg(rider.name)}</b><p>${riderTxt}</p></div>
     ${sum?`<div class="rev"><b>🕐 ${t('slotTitle')}</b><p>${esc(sum)}</p></div>`:''}
-    ${o.gift?`<div class="rev"><b>🎁 ${t('giftTitle')} — ${esc(occName(o.gift.occasion))}</b><p>"${esc(o.gift.msg||'—')}"</p></div>`:''}
+    ${o.gift?`<div class="rev"><b>🎁 ${t('giftTitle')} — ${esc(occName(o.gift.occasion))} • ${esc(giftStyleName(o.gift.style))}</b><p>"${esc(o.gift.msg||'—')}"</p></div>`:''}
     ${o.return?`<div class="rev"><b>↩ ${t('retStatus')}: ${retStatusName(o.return.status)}</b>
       <div class="track-steps" style="margin-top:10px">${[0,1,2,3].map(i=>`<div class="tstep ${i<=o.return.status?'done':''}"><div class="tdot">${i<=o.return.status?'✓':i+1}</div>${retStatusName(i)}</div>`).join('')}</div>
       <p>${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</p></div>`:''}
@@ -2056,7 +2093,7 @@ function renderCustomizer(tab='store'){
       <button data-c="flat" class="${T.cardStyle==='flat'?'active':''}">🧱 Flat</button></div></div>`;
   }
   if(tab==='home'){
-    const defs = [['hero','🎯 Hero banner'],['verticals','🧭 Category grid'],['promos','🎁 Promo banners'],['flash','⚡ Flash deals'],['best','🔥 Bestsellers'],['collections','🗂️ Collections'],['services','🛠️ Services'],['cities','🌍 Cities strip'],['testimonials','💬 Testimonials'],['recent','🕘 Recently viewed'],['reorder','🔄 Reorder shelf'],['footer','🦶 Footer']];
+    const defs = [['hero','🎯 Hero banner'],['verticals','🧭 Category grid'],['promos','🎁 Promo banners'],['flash','⚡ Flash deals'],['best','🔥 Bestsellers'],['collections','🗂️ Collections'],['services','🛠️ Services'],['cities','🌍 Cities strip'],['testimonials','💬 Testimonials'],['recent','🕘 Recently viewed'],['reorder','🔄 Reorder shelf'],['spotlight','🌟 Rider spotlight'],['footer','🦶 Footer']];
     B.innerHTML = `<div class="c-group"><h4>Homepage sections</h4>
       ${defs.map(([k,l])=>`<div class="toggle-row"><span>${l}</span><label class="switch"><input type="checkbox" data-sec="${k}" ${S.sections[k]?'checked':''}/><span class="slider"></span></label></div>`).join('')}</div>
       <p class="muted small">Toggle sections on/off — the homepage rebuilds instantly.</p>`;
