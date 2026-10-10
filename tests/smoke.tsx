@@ -231,6 +231,7 @@ async function main(): Promise<void> {
   }
   check('web app manifest shipped', fs.existsSync('public/manifest.webmanifest') && JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8')).icons.length >= 2);
   check('manifest declares standalone display', JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8')).display === 'standalone');
+  check('manifest shortcuts route to active views', JSON.parse(fs.readFileSync('public/manifest.webmanifest', 'utf8')).shortcuts.length === 3);
   const swSource = fs.readFileSync('public/sw.js', 'utf8');
   check('service worker shipped', swSource.includes("caches.open(VERSION)") && swSource.includes("request.method !== 'GET'"));
   check('service worker never caches dev or cross-origin traffic', swSource.includes("'/@'") && swSource.includes('url.origin !== self.location.origin'));

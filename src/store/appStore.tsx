@@ -87,9 +87,52 @@ function titleFrom(text: string): string {
   return cut.charAt(0).toUpperCase() + cut.slice(1);
 }
 
+function initialView(): ViewId {
+  if (typeof window === 'undefined') return 'chat';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get('view') as ViewId | null;
+    const valid: ViewId[] = ['chat', 'documents', 'codelab', 'studio', 'agents', 'settings'];
+    if (v && valid.includes(v)) return v;
+  } catch {
+    /* ignore */
+  }
+  return 'chat';
+}
+
 export function StoreProvider({ children }: { children: ReactNode }): ReactNode {
   const [ready, setReady] = useState(false);
-  const [view, setView] = useState<ViewId>('chat');
+  const [view, setViewRaw] = useState<ViewId>(initialView);
+
+  const setView = useCallback((next: ViewId) => {
+    setViewRaw(next);
+    try {
+      const url = new URL(window.location.href);
+      if (next === 'chat') {
+        url.searchParams.delete('view');
+      } else {
+        url.searchParams.set('view', next);
+      }
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const v = params.get('view') as ViewId | null;
+        const valid: ViewId[] = ['chat', 'documents', 'codelab', 'studio', 'agents', 'settings'];
+        setViewRaw(v && valid.includes(v) ? v : 'chat');
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<DocRecord[]>([]);

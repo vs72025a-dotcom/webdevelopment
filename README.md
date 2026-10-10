@@ -9,7 +9,7 @@ optionally hand the wheel to a frontier model when you paste an API key.
 npm install
 npm run dev        # http://localhost:5173 — binds 0.0.0.0
 npm run build      # tsc -b && vite build
-npm test           # typecheck + the jsdom runtime smoke test (93 assertions)
+npm test           # typecheck + the jsdom runtime smoke test (94 assertions)
 ```
 
 ---
@@ -154,7 +154,7 @@ reading the conversation back out of IndexedDB. It waits for the lazily-loaded c
 sleeping and hoping, then checks the extended pack is indexed and
 labelled as knowledge rather than as a user document, toggles it off and on through the real
 Settings switch, imports a library fixture and confirms it is retrievable, and verifies the shipped
-manifest and service worker, the AI Telemetry & Observability suite, and the live 50-query vector retrieval benchmark, and drag-and-drop file ingestion in the composer, conversation branching, and direct Code Lab code-block transfer. 93 assertions, all passing.
+manifest and service worker, the AI Telemetry & Observability suite, and the live 50-query vector retrieval benchmark, and drag-and-drop file ingestion in the composer, conversation branching, and direct Code Lab code-block transfer, and deep PWA shortcut navigation. 94 assertions, all passing.
 
 The scratch harnesses under `.scratch/` (gitignored) cover the maths parser, unit conversion,
 markdown safety, the highlighter, the retrieval benchmark, the extended-pack ablation study and
