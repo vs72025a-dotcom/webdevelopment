@@ -627,3 +627,13 @@ html[data-theme="dark"] .toast{background:#fff;color:#111}
 .loy-hero span{font-size:12px;opacity:.9}
 .loy-row{display:flex;gap:10px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--border)}
 .lr-e{font-size:22px}
+
+/* ---- v7: subscriptions / referrals / split tracking ---- */
+.sub-pick{display:flex;gap:8px;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px dashed var(--primary);border-radius:var(--radius-sm);padding:10px 12px;margin:0 0 14px}
+.sub-pick select{max-width:150px}
+.sub-btns{display:flex;flex-direction:column;gap:6px}
+.ref-box{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin:0 0 14px;display:flex;flex-direction:column;gap:10px}
+.ref-box .coupon-box{margin:0}
+.dot-sub{background:#8b5cf6}
+.ev-sub{background:#ede9fe;color:#6d28d9}
+[data-theme="dark"] .ev-sub{background:#4c1d95;color:#ede9fe}

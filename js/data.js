@@ -226,6 +226,9 @@ en:{
   schedSoon:'in', schedChip:'Scheduled', schedRemind:'Delivery reminder', schedRemindSub:'Your scheduled order is on its way soon',
   loyTitle:'Loyalty wallet', loyBal:'Points balance', loyEarn:'You will earn', loyPts:'pts', loyUse:'Use loyalty points', loyApplied:'Loyalty discount', loyHist:'History', loyEmpty:'No loyalty activity yet — place an order to earn!', loyRule:'Earn 1 pt per ₹10 • 1 pt = ₹1 off', loyGot:'points earned!',
   splitTitle:'Split across addresses', splitSub:'Send items to different addresses in one checkout', splitTo:'Deliver to', splitNew:'Use checkout address', splitOf:'of', splitShip:'shipment',
+  subTitle:'My Subscriptions', subBtn:'Subscribe', subEvery:'Every', subWeek:'week', sub2Week:'2 weeks', subMonth:'month', subSave:'Subscribe & Save 5%', subEmpty:'No subscriptions yet — subscribe to groceries from any product page!', subNext:'Next delivery', subPause:'Pause', subResume:'Resume', subCancel:'Cancel', subSkip:'Skip next', subActive:'Active', subPaused:'Paused', subDone:'Subscription order placed!',
+  refTitle:'Refer & Earn', refYou:'Your referral code', refShare:'Share', refCopied:'Code copied — share it!', refApply:"Apply a friend's code", refGo:'Apply', refOk:'Referral applied! +50 pts', refBad:'Invalid or already-used code', refRule:'You get +50 pts, your friend gets +50 too',
+  trkSplit:'Shipments in this order', trkOpen:'Track', calSub:'Subscription',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -273,6 +276,9 @@ hi:{
   schedSoon:'में', schedChip:'शेड्यूल्ड', schedRemind:'डिलीवरी रिमाइंडर', schedRemindSub:'आपका शेड्यूल्ड ऑर्डर जल्द आ रहा है',
   loyTitle:'लॉयल्टी वॉलेट', loyBal:'पॉइंट बैलेंस', loyEarn:'मिलेंगे', loyPts:'पॉइंट', loyUse:'लॉयल्टी पॉइंट इस्तेमाल करें', loyApplied:'लॉयल्टी छूट', loyHist:'हिस्ट्री', loyEmpty:'अभी कोई गतिविधि नहीं — ऑर्डर करके कमाएं!', loyRule:'₹10 पर 1 पॉइंट • 1 पॉइंट = ₹1 छूट', loyGot:'पॉइंट मिले!',
   splitTitle:'कई पतों पर भेजें', splitSub:'एक ही चेकआउट में सामान अलग-अलग पतों पर भेजें', splitTo:'डिलीवर होगा', splitNew:'चेकआउट वाला पता', splitOf:'/', splitShip:'पार्सल',
+  subTitle:'मेरे सब्सक्रिप्शन', subBtn:'सब्सक्राइब', subEvery:'हर', subWeek:'सप्ताह', sub2Week:'2 सप्ताह', subMonth:'महीना', subSave:'सब्सक्राइब करें — 5% बचाएं', subEmpty:'अभी कोई सब्सक्रिप्शन नहीं — किसी प्रोडक्ट पेज से सब्सक्राइब करें!', subNext:'अगली डिलीवरी', subPause:'रोकें', subResume:'चालू करें', subCancel:'रद्द करें', subSkip:'अगली छोड़ें', subActive:'चालू', subPaused:'रुका', subDone:'सब्सक्रिप्शन ऑर्डर हो गया!',
+  refTitle:'रेफर करें व कमाएं', refYou:'आपका रेफरल कोड', refShare:'शेयर', refCopied:'कोड कॉपी हुआ — शेयर करें!', refApply:'दोस्त का कोड लगाएं', refGo:'लगाएं', refOk:'रेफरल लगा! +50 पॉइंट', refBad:'गलत या इस्तेमाल किया कोड', refRule:'आपको +50, दोस्त को भी +50',
+  trkSplit:'इस ऑर्डर के पार्सल', trkOpen:'ट्रैक', calSub:'सब्सक्रिप्शन',
 }};
 
 const RETURN_REASONS = [
@@ -295,3 +301,4 @@ const RATING_TAGS = [
   { en:'Polite', hi:'विनम्र' }, { en:'Superfast', hi:'बहुत तेज़' }, { en:'Careful packing', hi:'सावधानी से पैकिंग' },
   { en:'On time', hi:'समय पर' }, { en:'Friendly', hi:'मिलनसार' },
 ];
+const SUB_FREQS = [7, 14, 30], SUB_SAVE_PCT = 5, REF_PTS = 50;

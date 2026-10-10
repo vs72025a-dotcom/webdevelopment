@@ -56,6 +56,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **📦 Split checkout** — send one cart to multiple saved addresses in a single checkout: per-item address picker, linked multi-shipment orders with proportional coupons and one delivery fee
 
+**🔁 Grocery subscriptions** — subscribe to any grocery product (weekly / 2-weekly / monthly) with 5% off; auto-orders on schedule with loyalty earn, pause/skip/cancel manager, renewal dots on the calendar
+
+**🎁 Refer & Earn** — every wallet has a referral code: share it, and applied codes grant +50 pts to both sides, booked in loyalty history
+
+**📦 Split-shipment tracking** — tracking any split parcel shows all sibling shipments with per-city status and one-tap jump between them
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs

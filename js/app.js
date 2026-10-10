@@ -60,6 +60,13 @@ const saveGift = () => LS.set('aw_gift_v1', gift);
 const saveBanners = () => LS.set('aw_banners_v1', customBanners);
 let loyalty = Object.assign({ pts:0, hist:[], updatedAt:0 }, LS.get('aw_loyal_v1', {}));
 const saveLoyalty = () => { loyalty.updatedAt = Date.now(); LS.set('aw_loyal_v1', loyalty); };
+let subs = LS.get('aw_subs_v1', []);
+const saveSubs = () => LS.set('aw_subs_v1', subs);
+let myRef = LS.get('aw_ref_v1', null);
+if(!myRef || !myRef.code){
+  myRef = { code:'AW-' + Array.from({length:6},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join(''), used:null, count:0 };
+  LS.set('aw_ref_v1', myRef);
+}
 
 /* ---------------- Helpers ---------------- */
 const t = k => (I18N[settings.lang] && I18N[settings.lang][k]) || I18N.en[k] || k;
@@ -275,10 +282,100 @@ function openWallet(){
   const box = $('#walletBox'); if(!box) return;
   box.innerHTML = `<div class="modal-head"><h3>⭐ ${t('loyTitle')}</h3><button class="icon-btn" onclick="document.getElementById('walletModal').classList.remove('show')">✕</button></div>
   <div class="modal-body"><div class="loy-hero"><small>${t('loyBal')}</small><b>⭐ ${loyalty.pts||0}</b><span>${t('loyRule')}</span></div>
+  <div class="ref-box"><span>🎁 <b>${t('refTitle')}</b><br/><small class="muted">${t('refRule')}</small></span>
+  <div class="coupon-box"><input id="refCodeOut" readonly value="${myRef.code}"/><button class="btn secondary sm" id="refShare">${t('refShare')}</button></div>
+  <div class="coupon-box"><input id="refCodeIn" placeholder="${t('refApply')}" ${myRef.used?`value="${esc(myRef.used)}" disabled`:''}/><button class="btn primary sm" id="refGo" ${myRef.used?'disabled':''}>${t('refGo')}</button></div></div>
   <div class="addr-head"><h4>🧾 ${t('loyHist')}</h4></div>
   ${(loyalty.hist||[]).length ? (loyalty.hist||[]).map(h=>`<div class="loy-row"><span class="lr-e">${h.pts>0?'🪙':'💸'}</span><div style="flex:1"><b>${h.pts>0?'+':''}${h.pts} ${t('loyPts')}</b><br/><small class="muted">${esc(h.label||'')}</small></div><small class="muted">${timeAgo(h.ts)}</small></div>`).join('') : `<p class="muted center">${t('loyEmpty')}</p>`}</div>`;
   openModal('walletModal');
+  const rs = $('#refShare'); if(rs) rs.onclick = shareReferral;
+  const rg = $('#refGo'); if(rg) rg.onclick = ()=>applyReferral(($('#refCodeIn')||{value:''}).value);
 }
+
+/* ---------------- v7: subscriptions + referrals + split tracking ---------------- */
+function subFreqName(d){ return d===7 ? t('subWeek') : d===14 ? t('sub2Week') : t('subMonth'); }
+function addSub(pid, qty, freq){
+  const p = getP(pid); if(!p) return null;
+  const ex = subs.find(s=>s.pid===pid && s.active!==false);
+  if(ex){ ex.qty = qty||ex.qty; ex.freq = freq||ex.freq; ex.nextTs = Date.now()+ex.freq*864e5; saveSubs(); cloudUp(); return ex; }
+  const s = { id:uid('SB'), pid, qty:qty||1, freq:freq||7, nextTs:Date.now()+(freq||7)*864e5, active:true, createdAt:Date.now() };
+  subs.push(s); saveSubs(); cloudUp();
+  notify('🔁 '+t('subBtn'), `${p.e} ${p.n} • ${t('subEvery')} ${subFreqName(s.freq)}`, '🔁');
+  return s;
+}
+function fulfillSubs(){
+  let made = [];
+  subs.forEach(s=>{
+    if(!s || s.active===false || (s.nextTs||0) > Date.now()) return;
+    const p = getP(s.pid); if(!p) return;
+    const addr = addrs[0] ? { name:addrs[0].name, phone:addrs[0].phone, line:addrs[0].line, city:addrs[0].city, pin:addrs[0].pin }
+      : { name:(user&&user.name)||'Subscriber', phone:(user&&user.phone)||'', line:'', city:location.n, pin:location.pin };
+    const sub = p.p*s.qty, disc = Math.round(sub*SUB_SAVE_PCT/100);
+    const cm = settings.commerce;
+    const del = (sub-disc) >= cm.freeAbove ? 0 : cm.deliveryFee;
+    const tax = Math.max(0,sub-disc)*cm.taxPct/100;
+    const total = Math.max(0, Math.round(sub-disc+del+tax));
+    const o = { id:uid('AW').toUpperCase(), items:[{id:p.id,qty:s.qty,price:p.p}], total, sub, discount:disc,
+      status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
+      addr, pay:'Subscription 🔁', upi:'', placedAt:Date.now(), slot:{}, gift:null, rating:null, subId:s.id };
+    orders.push(o); made.push(o);
+    s.nextTs = Date.now()+s.freq*864e5;
+    const earn = loyEarnFor(total);
+    if(earn>0) loyAdd(earn, `🔁 ${HI()?'सब्सक्रिप्शन':'Subscription'} #${o.id}`);
+  });
+  if(made.length){
+    saveSubs(); saveOrders(); cloudUp();
+    made.forEach(o=>notify('🔁 '+t('subDone'), `#${o.id} • ${fmt(o.total)}`, '🔁'));
+  }
+  return made.length;
+}
+function openSubs(){
+  const box = $('#subBox'); if(!box) return;
+  const rows = subs.map(s=>{
+    const p = getP(s.pid);
+    const nm = p ? `${p.e} ${p.n}` : s.pid;
+    const paused = s.active===false;
+    return `<div class="split-row"><div style="flex:1"><b>${esc(nm)} × ${s.qty}</b><br/>
+      <small class="muted">${t('subEvery')} ${subFreqName(s.freq)} • ${t('subNext')}: ${new Date(s.nextTs).toLocaleDateString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'})}</small><br/>
+      <span class="status ${paused?'st-placed':'st-delivered'}" style="font-size:11px">${paused?t('subPaused'):t('subActive')}</span></div>
+      <div class="sub-btns"><button class="btn ghost sm" data-subskip="${s.id}">⏭ ${t('subSkip')}</button>
+      <button class="btn secondary sm" data-subpause="${s.id}">${paused?'▶ '+t('subResume'):t('subPause')}</button>
+      <button class="btn danger-ghost sm" data-subdel="${s.id}">✕</button></div></div>`;
+  }).join('');
+  box.innerHTML = `<div class="modal-head"><h3>🔁 ${t('subTitle')}</h3><button class="icon-btn" onclick="document.getElementById('subModal').classList.remove('show')">✕</button></div>
+  <div class="modal-body">${subs.length?`<div class="split-list">${rows}</div>`:`<div class="empty"><div class="big">🔁</div><p>${t('subEmpty')}</p></div>`}</div>`;
+  openModal('subModal');
+  $$('[data-subskip]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subskip); if(s){ s.nextTs=Date.now()+s.freq*864e5; saveSubs(); cloudUp(); openSubs(); toast(t('subNext')+': '+new Date(s.nextTs).toLocaleDateString(),'⏭'); } });
+  $$('[data-subpause]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subpause); if(s){ s.active=s.active===false?true:false; saveSubs(); cloudUp(); openSubs(); } });
+  $$('[data-subdel]',box).forEach(b=>b.onclick=()=>{ subs=subs.filter(x=>x.id!==b.dataset.subdel); saveSubs(); cloudUp(); openSubs(); });
+}
+function applyReferral(code){
+  code = String(code||'').trim().toUpperCase().replace(/^AW-/,'');
+  if(!/^[A-Z0-9]{6}$/.test(code) || ('AW-'+code)===myRef.code || myRef.used){ toast(t('refBad'),'⚠️'); return false; }
+  myRef.used = 'AW-'+code; LS.set('aw_ref_v1', myRef);
+  loyAdd(REF_PTS, `🎁 ${t('refTitle')} — AW-${code}`);
+  notify(`🎁 ${t('refOk')}`, `${t('loyBal')}: ${loyalty.pts}`, '🎁');
+  openWallet();
+  return true;
+}
+function shareReferral(){
+  const txt = HI() ? `मेरे साथ ${settings.storeName} पर शॉप करो! कोड ${myRef.code} लगाओ — हम दोनों को +50 पॉइंट 🎁` : `Shop with me on ${settings.storeName}! Use code ${myRef.code} — we both get +50 pts 🎁`;
+  const done = ()=>toast(t('refCopied'),'📋');
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(done);
+    else done();
+  }catch{ done(); }
+}
+function splitSibs(o){
+  if(!o || !o.splitId) return [];
+  return orders.filter(x=>x.splitId===o.splitId).sort((a,b)=>(a.splitIdx||0)-(b.splitIdx||0));
+}
+function splitTrackHTML(o){
+  const sibs = splitSibs(o);
+  if(sibs.length < 2) return '';
+  return `<div class="rev"><b>📦 ${t('trkSplit')}</b><div class="split-list" style="margin-top:10px">${sibs.map(s=>`<div class="split-row"><div style="flex:1"><b>${s.splitIdx} ${t('splitOf')} ${s.splitCount} • #${s.id}</b><br/><small class="muted">📍 ${esc(s.addr.city||'')} • ${statusName(s.status)}</small></div>${s.id===o.id?`<span class="status st-${['placed','preparing','shipped','out','delivered'][s.status]}">${statusName(s.status)}</span>`:`<button class="btn secondary sm" data-sibgo="${s.id}">📍 ${t('trkOpen')}</button>`}</div>`).join('')}</div></div>`;
+}
+function subEvTitle(o){ const it=(o.items||[])[0]||{}; const p=getP(it.id); return `<b>${p?esc(p.n):'🔁'} × ${it.qty||1}</b>`; }
 
 /* ---------------- Calendar helpers ---------------- */
 const isoDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
@@ -295,6 +392,12 @@ function expectedDelivery(o){
 }
 function orderEvents(){
   const evs = [];
+  try{
+    (subs||[]).forEach(s=>{
+      if(!s || s.active===false) return;
+      for(let k=0;k<2;k++) evs.push({ d:isoDay((s.nextTs||Date.now())+k*(s.freq||30)*864e5), type:'sub', o:{ id:s.id, total:0, items:[{id:s.pid,qty:s.qty}], addr:{city:''} } });
+    });
+  }catch{}
   orders.forEach(o=>{
     evs.push({ d:isoDay(o.placedAt||Date.now()), type:'placed', o });
     const svc = !!(o.slot && o.slot.serviceDate);
@@ -402,7 +505,7 @@ function renderNav(){
   }
   const links = [
     ['🏠', t('sideHome'), 'home'], ['🧭', t('sideExplore'), 'shop'], ['🏷️', t('sideOffers'), 'offers'],
-    ['📦', t('sideOrders'), 'orders'], ['❤️', t('sideWish'), 'wish'], ['⭐', `${t('loyTitle')} (${loyalty.pts||0})`, 'wallet'], ['💼', t('sideSeller'), 'seller'],
+    ['📦', t('sideOrders'), 'orders'], ['❤️', t('sideWish'), 'wish'], ['⭐', `${t('loyTitle')} (${loyalty.pts||0})`, 'wallet'], ['🔁', `${t('subTitle')} (${subs.filter(s=>s.active!==false).length})`, 'subs'], ['💼', t('sideSeller'), 'seller'],
     ['🎨', t('sideCustom'), 'custom'],
     ...VERTICALS.map(v => [v.emoji, vname(v), 'v:'+v.id]),
   ];
@@ -418,6 +521,7 @@ function renderNav(){
       else if(a==='seller') route.page='seller';
       else if(a==='wish'){ openDrawer('wishDrawer'); renderWish(); return; }
       else if(a==='wallet'){ openWallet(); return; }
+      else if(a==='subs'){ openSubs(); return; }
       else if(a==='custom'){ openDrawer('customDrawer'); renderCustomizer('store'); return; }
       else if(a.startsWith('v:')) route={page:'shop',vertical:a.slice(2),category:'all',query:'',sort:'pop'};
       renderAll(); window.scrollTo({top:0,behavior:'smooth'});
@@ -633,6 +737,7 @@ function orderCardHTML(o){
     ${sum?`<span>🕐 ${esc(sum)}</span>`:''}${o.gift?`<span>🎁 ${esc(occName(o.gift.occasion))}</span>`:''}
     ${o.scheduledFor?`<span>⏰ ${esc(schedLabel(o.scheduledFor))}${schedCountdown(o.scheduledFor)?` • ${esc(schedCountdown(o.scheduledFor))}`:''}</span>`:''}
     ${o.splitCount?`<span>📦 ${o.splitIdx} ${t('splitOf')} ${o.splitCount} ${t('splitShip')}</span>`:''}
+    ${o.subId?`<span>🔁 ${t('subBtn')}</span>`:''}
     ${o.rating?`<span style="color:#f59e0b">★ ${o.rating.stars}</span>`:''}</div>
     <div class="track-steps">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
     ${o.return?`<div class="refund-line">↩ ${t('retStatus')}: <b>${retStatusName(o.return.status)}</b> • ${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</div>`:''}
@@ -669,10 +774,10 @@ function calendarHTML(){
       <button class="btn ghost sm" data-calnav="1">→</button></div></div>
     <div class="cal-grid">${dows.map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div></div>
   <div class="cal-events"><h3>📅 ${dayLabel}</h3>
-    ${dayEvs.length ? dayEvs.map(e=>{ const o = e.o; return `<div class="cal-ev"><span class="ce-ico">${e.type==='service'?'🛠️':e.type==='delivery'?'📬':'🧾'}</span>
-      <div style="flex:1"><b>#${o.id} • ${fmt(o.total)}</b><small>${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join(' ')} ${esc(o.addr.city||'')}</small></div>
-      <span class="ev-pill ev-${e.type}">${e.type==='service'?t('calService'):e.type==='delivery'?t('calDelivery'):t('calPlaced')}</span>
-      <button class="btn secondary sm" data-track="${o.id}">📍</button></div>`; }).join('')
+    ${dayEvs.length ? dayEvs.map(e=>{ const o = e.o; return `<div class="cal-ev"><span class="ce-ico">${e.type==='sub'?'🔁':e.type==='service'?'🛠️':e.type==='delivery'?'📬':'🧾'}</span>
+      <div style="flex:1">${e.type==='sub'?subEvTitle(o):`<b>#${o.id} • ${fmt(o.total)}</b>`}<small>${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join(' ')} ${esc(o.addr.city||'')}</small></div>
+      <span class="ev-pill ev-${e.type}">${e.type==='sub'?t('calSub'):e.type==='service'?t('calService'):e.type==='delivery'?t('calDelivery'):t('calPlaced')}</span>
+      ${e.type==='sub'?`<button class="btn secondary sm" onclick="openSubs()">🔁</button>`:`<button class="btn secondary sm" data-track="${o.id}">📍</button>`}</div>`; }).join('')
     : `<div class="empty"><div class="big">🗓️</div><p>${t('calNone')}</p></div>`}
   </div></div>`;
 }
@@ -1034,6 +1139,7 @@ function openProduct(id){
         <button class="btn primary" style="flex:1" data-padd="${p.id}">🛒 ${t('pAddCart')}</button>
         <button class="icon-btn" data-pwish="${p.id}">${wishlist.has(p.id)?'❤️':'🤍'}</button>
       </div>
+      ${p.v==='grocery'?`<div class="sub-pick"><span>🔁 <b>${t('subSave')}</b></span><span style="display:flex;gap:6px;align-items:center"><select id="subFreq">${SUB_FREQS.map(f=>`<option value="${f}">${t('subEvery')} ${subFreqName(f)}</option>`).join('')}</select><button class="btn secondary sm" id="subGo">${t('subBtn')}</button></span></div>`:''}
       <div class="pay-opt" style="padding:10px 14px">🚚 <span class="small">${t('pDeliverTo')} <b>${esc(location.n)} ${esc(location.pin)}</b> — ${esc(p.t||'soon')}</span></div>
       <h4 class="mt">⭐ ${t('pReviews')}</h4>
       <div id="revList">${revs.map(r=>`<div class="rev"><b>${esc(r.n)}</b> <span style="color:#f59e0b">${stars(r.r)}</span><p>${esc(r.t)}</p></div>`).join('')}</div>
@@ -1044,6 +1150,8 @@ function openProduct(id){
   $('[data-pdec]',box).onclick = ()=>setQty(p.id,(cart[p.id]||0)-1);
   $('[data-padd]',box).onclick = ()=>{ setQty(p.id,(cart[p.id]||0)+1); toast('Added to cart','🛒'); };
   $('[data-pwish]',box).onclick = e=>{ toggleWish(p.id); e.target.textContent = wishlist.has(p.id)?'❤️':'🤍'; };
+  const sg = $('#subGo');
+  if(sg) sg.onclick = ()=>{ const f = +($('#subFreq')||{value:7}).value; addSub(p.id, Math.max(1,cart[p.id]||1), f); openSubs(); };
   const ra = $('#revAdd');
   if(ra) ra.onclick = ()=>{
     const txt = $('#revInput').value.trim(); if(!txt) return;
@@ -1429,6 +1537,7 @@ function openTrack(id){
     ${o.status===4 ? (o.rating
       ? `<div class="rev"><b>⭐ ${t('rateBtn')}</b><p style="color:#f59e0b;font-size:16px">${stars(o.rating.stars)}</p></div>`
       : `<button class="btn secondary full" id="trackRate" style="margin-bottom:10px">⭐ ${t('rateBtn')} — ${rider.name}</button>`) : ''}
+    ${splitTrackHTML(o)}
     <div class="rev"><b>🧾 ${t('coItems')}</b><p>${items.map(esc).join('<br/>')}</p></div>
     <div class="rev"><b>📍 ${t('pDeliverTo')}</b><p>${esc(o.addr.name)} • ${esc(o.addr.line)}, ${esc(o.addr.city)} ${esc(o.addr.pin)}</p></div>
     <div class="bill-row total"><span>${HI()?'भुगतान':'Paid via'} ${esc(o.pay)}${o.razorpay&&o.razorpay.payment_id?' • …'+esc(o.razorpay.payment_id.slice(-6)):''}</span><span>${fmt(o.total)}</span></div>
@@ -1436,6 +1545,7 @@ function openTrack(id){
   </div>`;
   openModal('trackModal');
   trackToken++;
+  $$('[data-sibgo]',box).forEach(b=>b.onclick=()=>openTrack(b.dataset.sibgo));
   animateRider(o, trackToken);
   const tr = $('#trackRate');
   if(tr) tr.onclick = ()=>openRate(id);
@@ -1531,7 +1641,8 @@ function tickSim(){
         done?'💰':'↩');
     }
   });
-  if(moved){ saveOrders(); cloudUp(); if(route.page==='orders') renderPage(); }
+  const madeSubs = fulfillSubs();
+  if(moved || madeSubs){ saveOrders(); cloudUp(); if(route.page==='orders') renderPage(); }
 }
 setInterval(tickSim, 25000);
 
@@ -1907,7 +2018,7 @@ function bindCustomizer(tab){
   }
 }
 function exportData(){
-  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, customBanners, loyalty, exportedAt:new Date().toISOString() };
+  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, customBanners, loyalty, subs, exportedAt:new Date().toISOString() };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download = 'anywhere-anything-backup.json'; a.click();
@@ -2052,6 +2163,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(d.addrs){ addrs=d.addrs; saveAddrs(); }
       if(d.customBanners){ customBanners=d.customBanners; saveBanners(); }
       if(d.loyalty){ loyalty=Object.assign({pts:0,hist:[],updatedAt:0},d.loyalty); saveLoyalty(); }
+      if(d.subs){ subs=d.subs; saveSubs(); }
       renderAll(); renderCustomizer('store'); toast('Backup restored!','💾');
     }catch{ toast('Invalid backup file','⚠️'); } };
     rd.readAsText(f); e.target.value='';
