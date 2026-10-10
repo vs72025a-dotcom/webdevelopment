@@ -34,6 +34,14 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **🗺️ Live rider map** — animated tracker map in every order: moving rider, store→home route, ETA chip, rider card
 
+**🕐 Delivery slots** — ASAP or scheduled food windows, 3-day service-visit booking, Standard vs Express (+fee) shipping for the rest
+
+**⭐ Rider ratings** — 5-star + tags for every delivered order; rider averages surface on tracking
+
+**🎁 Gifting** — gift wrap + occasion + message + price-hiding, saved per order and shown on tracking
+
+**☁️ Firebase cloud sync** — optional real backend: connect a free Realtime Database URL and orders/products/settings sync across devices (see below)
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs
@@ -69,7 +77,20 @@ js/app.js       → state, rendering, cart, checkout, tracking, customizer
 ## 🧪 Try this
 
 1. Search "pizza" → open quick-view → post a review → add to cart
-2. Apply `WELCOME20` in the cart → checkout → track the live order
-3. Open **🎨 Customize** → switch to dark + Violet theme, rename the store, hide sections
-4. **Products tab** → add your own product with your own emoji/pricing
-5. **Data tab** → export backup, reset, re-import
+2. Cart → 🎁 gift-wrap it → checkout → pick a slot → pay with UPI → track the rider on the map
+3. After delivery → ⭐ rate your rider, or ↩ request a return
+4. Open **🎨 Customize** → switch to dark + Violet theme, rename the store, hide sections
+5. **Products tab** → add your own product with your own photo/pricing
+6. **Data tab** → export backup, reset, re-import — or connect Firebase below
+
+## ☁️ Firebase setup (5 minutes, free)
+
+The app works fully offline, but you can attach a real cloud backend:
+
+1. Go to [Firebase Console](https://console.firebase.google.com) → Add project (any name, analytics off is fine)
+2. **Build → Realtime Database** → Create database → choose region → start in **test mode**
+3. Copy the database URL — looks like `https://your-app-default-rtdb.firebaseio.com`
+4. In the app: **🎨 Customize → Data → Cloud sync** → paste the URL → **Connect**
+5. Done! Orders, products, settings & addresses now sync across every device with the same URL (auto-poll every 30s + instant push on changes). Seller Central on your laptop will live-update with orders placed on your phone.
+
+> Test mode allows open read/write for 30 days — fine for demos. For production, set proper `.read`/`.write` rules in Firebase.

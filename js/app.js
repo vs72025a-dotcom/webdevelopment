@@ -1,6 +1,6 @@
 /* ============================================================
    AnyWhere Anything — App Engine
-   State • i18n • Cart • Checkout+UPI • Seller • Notify • Map
+   State • i18n • Slots • Gifts • Ratings • Cloud • UPI • Map
    ============================================================ */
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
@@ -13,6 +13,8 @@ const uid = (p='') => p + Date.now().toString(36) + Math.random().toString(36).s
 const esc = (s='') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const setT = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
 const setPH = (id, txt) => { const el = document.getElementById(id); if(el) el.placeholder = txt; };
+const cloudUp = () => { try{ if(typeof Cloud !== 'undefined') Cloud.up(); }catch{} };
+const cloudOn = () => { try{ return typeof Cloud !== 'undefined' && Cloud.on; }catch{ return false; } };
 
 /* ---------------- State ---------------- */
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get('aw_settings_v1', {}));
@@ -35,10 +37,13 @@ let myReviews = LS.get('aw_reviews_v1', {});
 let addrs = LS.get('aw_addrs_v1', []);
 let notifs = LS.get('aw_notifs_v1', []);
 let pushOn = LS.get('aw_push_v1', false);
+let gift = Object.assign({ on:false, msg:'', occasion:0, hide:false }, LS.get('aw_gift_v1', {}));
+let riderRatings = LS.get('aw_rider_ratings_v1', {});
 
 let route = { page:'home', vertical:'all', category:'all', query:'', sort:'pop' };
 let filters = { cats:new Set(), maxPrice:100000, minRating:0, vegOnly:false };
-let coState = { step:0, addr:{}, pay:'upi', upi:{ id:'', verified:false, name:'', app:'GPay' }, addrId:null, newAddr:false };
+let coState = { step:0, addr:{}, pay:'upi', upi:{ id:'', verified:false, name:'', app:'GPay' },
+  addrId:null, newAddr:false, slot:{ food:'asap', speed:'standard', service:'' } };
 
 const saveSettings = () => LS.set('aw_settings_v1', settings);
 const saveCart = () => LS.set('aw_cart_v1', cart);
@@ -46,6 +51,7 @@ const saveWish = () => LS.set('aw_wish_v1', [...wishlist]);
 const saveOrders = () => LS.set('aw_orders_v1', orders);
 const saveAddrs = () => LS.set('aw_addrs_v1', addrs);
 const saveNotifs = () => LS.set('aw_notifs_v1', notifs);
+const saveGift = () => LS.set('aw_gift_v1', gift);
 
 /* ---------------- Helpers ---------------- */
 const t = k => (I18N[settings.lang] && I18N[settings.lang][k]) || I18N.en[k] || k;
@@ -63,9 +69,15 @@ const getP = id => getProducts().find(p => p.id === id);
 const vertOf = id => VERTICALS.find(v => v.id === id);
 const statusName = i => t('st'+Math.min(4,Math.max(0,i)));
 const retStatusName = i => t('r'+Math.min(3,Math.max(0,i)));
+const occName = i => { const o = GIFT_OCCASIONS[i] || GIFT_OCCASIONS[0]; return HI() ? o.hi : o.en; };
 function riderFor(o){
-  let s = 0; for(const ch of o.id) s += ch.charCodeAt(0);
+  let s = 0; for(const ch of String(o.id||o)) s += ch.charCodeAt(0);
   return { name: RIDER_NAMES[s % RIDER_NAMES.length], rating: (4.7 + (s % 3) * 0.1).toFixed(1) };
+}
+function riderAvg(name){
+  const r = riderRatings[name] || [];
+  if(!r.length) return riderFor({ id:name }).rating;
+  return (r.reduce((a,b)=>a+b,0) / r.length).toFixed(1);
 }
 function timeAgo(ts){
   const m = Math.max(0, Math.floor((Date.now()-ts)/60000));
@@ -124,6 +136,39 @@ function drawUPIQR(canvas, seedStr){
   }
 }
 
+/* ---------------- Delivery slot builders ---------------- */
+const DAY_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAY_HI = ['रवि','सोम','मंगल','बुध','गुरु','शुक्र','शनि'];
+function fmtHour(h){ const ap = h>=12?'PM':'AM'; return `${((h+11)%12)+1} ${ap}`; }
+function foodSlots(){
+  const out = [{ v:'asap', l:t('slotASAP') }];
+  const h = new Date().getHours()+1;
+  for(let i=0;i<4;i++){
+    const l = `${t('slotToday')}, ${fmtHour((h+i)%24)}–${fmtHour((h+i+1)%24)}`;
+    out.push({ v:l, l });
+  }
+  return out;
+}
+function serviceSlots(){
+  const wins = [['10 AM','12 PM'],['2 PM','4 PM'],['5 PM','7 PM']];
+  const out = [], now = new Date();
+  for(let d=0; d<3; d++){
+    const dt = new Date(now.getTime()+d*864e5);
+    const dn = (HI()?DAY_HI:DAY_EN)[dt.getDay()];
+    const dayL = d===0 ? t('slotToday') : d===1 ? t('slotTomw') : dn;
+    wins.forEach(w=>{ const v = `${dn}, ${w[0]}–${w[1]}`; out.push({ v, l:`${dayL}, ${w[0]}–${w[1]}` }); });
+  }
+  return out;
+}
+function slotSummary(o){
+  if(!o.slot) return '';
+  const parts = [];
+  if(o.slot.food && o.slot.food !== 'asap') parts.push('🍔 ' + o.slot.food);
+  if(o.slot.service) parts.push('🛠️ ' + o.slot.service);
+  if(o.slot.speed === 'express') parts.push('⚡ ' + t('slotExp'));
+  return parts.join(' • ');
+}
+
 /* ---------------- Notifications ---------------- */
 function notify(title, body, e='🔔'){
   notifs.unshift({ id:uid('n'), title, body, e, ts:Date.now(), read:false });
@@ -142,7 +187,7 @@ function renderNotifs(){
       <span>${pushOn&&granted ? t('notifOn') : t('notifEnable')}<small>${HI()?'ऑर्डर अपडेट तुरंत पाएं':'Get order updates instantly'}</small></span>
       ${pushOn&&granted ? '' : `<button class="btn primary sm" id="btnPush">${t('notifEnable')}</button>`}
     </div>
-    ${notifs.length ? `<div class="addr-head"><h4>${notifs.length} ${t('notifTitle').toLowerCase?.()||''}</h4><button class="btn ghost sm" id="btnClearN">${t('notifClear')}</button></div>` : ''}
+    ${notifs.length ? `<div class="addr-head"><h4>🔔 ${t('notifTitle')}</h4><button class="btn ghost sm" id="btnClearN">${t('notifClear')}</button></div>` : ''}
     ${notifs.length ? notifs.map(n=>`<div class="notif-item ${n.read?'':'unread'}"><span class="ne">${n.e}</span>
       <div><b>${esc(n.title)}</b><p>${esc(n.body)}</p><small>${timeAgo(n.ts)}</small></div></div>`).join('')
     : `<div class="empty"><div class="big">🔔</div><h3>${t('notifEmpty')}</h3><p>${t('notifEmptySub')}</p></div>`}`;
@@ -448,15 +493,20 @@ function ordersHTML(){
   if(!orders.length) return `<div class="empty" style="padding-top:80px"><div class="big">📦</div><h3>${t('ordEmpty')}</h3><p>${t('ordEmptySub')}</p><button class="btn primary" data-vert-go="all">${t('ordStart')}</button></div>`;
   const sub = HI() ? `${orders.length} ऑर्डर • लाइव ट्रैकिंग` : `${orders.length} order(s) • live tracking`;
   return `<div class="sec-head" style="margin-top:6px"><div><h2>📦 ${t('ordTitle')}</h2><p>${sub}</p></div></div>` +
-  [...orders].reverse().map(o=>`<div class="order-card"><div class="order-top"><b>#${o.id}</b>
+  [...orders].reverse().map(o=>{
+    const sum = slotSummary(o);
+    return `<div class="order-card"><div class="order-top"><b>#${o.id}</b>
     <span class="status st-${['placed','preparing','shipped','out','delivered'][o.status]}">${statusName(o.status)}</span></div>
-    <div class="order-items">${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join('')}</div>
-    <div class="order-meta"><span>🧾 ${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')}</span><span>💰 ${fmt(o.total)}</span><span>📅 ${o.date}</span><span>📍 ${esc(o.addr.city||location.n)}</span></div>
+    <div class="order-items">${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join('')}${o.gift?'🎁':''}</div>
+    <div class="order-meta"><span>🧾 ${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')}</span><span>💰 ${fmt(o.total)}</span><span>📅 ${o.date}</span><span>📍 ${esc(o.addr.city||location.n)}</span>
+    ${sum?`<span>🕐 ${esc(sum)}</span>`:''}${o.gift?`<span>🎁 ${esc(occName(o.gift.occasion))}</span>`:''}
+    ${o.rating?`<span style="color:#f59e0b">★ ${o.rating.stars}</span>`:''}</div>
     <div class="track-steps">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
     ${o.return?`<div class="refund-line">↩ ${t('retStatus')}: <b>${retStatusName(o.return.status)}</b> • ${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</div>`:''}
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn secondary sm" data-track="${o.id}">📍 ${t('ordTrack')}</button><button class="btn ghost sm" data-reorder="${o.id}">🔁 ${t('ordReorder')}</button>
+    ${o.status===4 && !o.rating ? `<button class="btn secondary sm" data-rate="${o.id}">⭐ ${t('rateBtn')}</button>` : ''}
     ${o.status===4 && !o.return ? `<button class="btn danger-ghost sm" data-return="${o.id}">↩ ${t('retTitle')}</button>` : ''}</div>
-  </div>`).join('');
+  </div>`; }).join('');
 }
 
 /* ============================================================
@@ -469,7 +519,7 @@ function seedSampleOrders(){
     total:a.p*2+b.p, sub:0, discount:0, status:Math.min(4,i+1),
     date:new Date(Date.now()-i*864e5).toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'}),
     addr:{name:user?.name||'Guest',line:'221 Baker Street',city:location.n,pin:location.pin}, pay:'UPI (GPay)', placedAt:Date.now()-i*864e5 }; };
-  orders.push(mk(0), mk(1), mk(2)); saveOrders();
+  orders.push(mk(0), mk(1), mk(2)); saveOrders(); cloudUp();
 }
 function sellerHTML(){
   const prods = getProducts();
@@ -490,7 +540,7 @@ function sellerHTML(){
   const payout = Math.round(rev*0.93);
   const nextPay = new Date(Date.now()+3*864e5).toLocaleDateString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'});
   return `<div class="sec-head" style="margin-top:6px"><div><h2>💼 ${t('selTitle')}</h2><p>${t('selSub')}</p></div>
-    <div class="seller-actions"><button class="btn secondary sm" id="sView">🏪 ${t('selView')}</button><button class="btn primary sm" id="sAdd">＋ ${t('selAdd')}</button></div></div>
+    <div class="seller-actions"><button class="btn ghost sm" id="sCloud">${cloudOn()?'☁️ '+t('cloudOn'):'📴 '+t('cloudLocal')}</button><button class="btn secondary sm" id="sView">🏪 ${t('selView')}</button><button class="btn primary sm" id="sAdd">＋ ${t('selAdd')}</button></div></div>
   <div class="stat-grid">
     <div class="stat"><small>${t('selRevenue')}</small><b>${fmt(rev)}</b><span>▲ ${HI()?'इस सप्ताह':'this week'}</span></div>
     <div class="stat"><small>${t('selOrders')}</small><b>${orders.length}</b><span>${orders.filter(o=>o.status<4).length} ${HI()?'चालू':'active'}</span></div>
@@ -503,7 +553,7 @@ function sellerHTML(){
       ${!orders.length?`<p class="muted small center" style="margin:10px 0 2px">${t('selEmpty')}</p><div class="center"><button class="btn secondary sm" id="sSeed">✨ ${t('selSeed')}</button></div>`:''}
     </div>
     <div class="panel"><h3>🧾 ${t('selRecent')}</h3><p class="psub">${orders.length} total</p>
-      ${recentOrders.length ? recentOrders.map(o=>`<div class="sord"><span class="so">📦</span><div class="si"><b>#${o.id}</b><small>${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')} • ${fmt(o.total)} • ${o.date}</small></div>
+      ${recentOrders.length ? recentOrders.map(o=>`<div class="sord"><span class="so">📦</span><div class="si"><b>#${o.id}</b><small>${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')} • ${fmt(o.total)} • ${o.date}${slotSummary(o)?' • 🕐 '+esc(slotSummary(o)):''}${o.gift?' • 🎁':''}</small></div>
         <span class="status st-${['placed','preparing','shipped','out','delivered'][o.status]}">${statusName(o.status)}</span>
         ${o.status<4?`<button class="btn secondary sm" data-sadv="${o.id}">${t('selAdvance')} →</button>`:''}</div>`).join('')
       : `<p class="muted small">${t('selEmpty')}</p>`}
@@ -563,16 +613,18 @@ function renderPage(){
   $$('[data-apply]', pg).forEach(b => b.onclick = () => applyCoupon(b.dataset.apply));
   $$('[data-track]', pg).forEach(b => b.onclick = () => openTrack(b.dataset.track));
   $$('[data-return]', pg).forEach(b => b.onclick = () => openReturn(b.dataset.return));
+  $$('[data-rate]', pg).forEach(b => b.onclick = () => openRate(b.dataset.rate));
   $$('[data-reorder]', pg).forEach(b => b.onclick = () => {
     const o = orders.find(x=>x.id===b.dataset.reorder);
     if(o){ o.items.forEach(i => { if(getP(i.id)) cart[i.id]=(cart[i.id]||0)+i.qty; }); saveCart(); updateBadges(); renderCart(); openDrawer('cartDrawer'); toast('Items added back to cart','🔁'); }
   });
   const sAdd = $('#sAdd'); if(sAdd) sAdd.onclick = ()=>openPM(null);
   const sView = $('#sView'); if(sView) sView.onclick = ()=>{ route.page='home'; renderAll(); window.scrollTo({top:0,behavior:'smooth'}); };
+  const sCloud = $('#sCloud'); if(sCloud) sCloud.onclick = ()=>{ openDrawer('customDrawer'); renderCustomizer('data'); };
   const sSeed = $('#sSeed'); if(sSeed) sSeed.onclick = ()=>{ seedSampleOrders(); renderPage(); toast('Sample orders added','📦'); };
   $$('[data-sadv]', pg).forEach(b => b.onclick = () => {
     const o = orders.find(x=>x.id===b.dataset.sadv);
-    if(o){ o.status=Math.min(4,o.status+1); saveOrders(); renderPage();
+    if(o){ o.status=Math.min(4,o.status+1); saveOrders(); renderPage(); cloudUp();
       notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, '📦');
       toast('Status: '+statusName(o.status),'📦'); }
   });
@@ -619,7 +671,7 @@ function startFlashTimer(){
 }
 
 /* ============================================================
-   CART + WISHLIST
+   CART + WISHLIST + GIFT
    ============================================================ */
 function cartDetailed(){
   return Object.entries(cart).map(([id,qty])=>({p:getP(id),qty})).filter(x=>x.p);
@@ -639,8 +691,12 @@ function cartTotals(){
   const cm = settings.commerce;
   let del = items.length ? cm.deliveryFee : 0;
   if(freeDel || (sub-discount) >= cm.freeAbove || !items.length) del = 0;
+  const hasShip = items.some(i=>!['food','services'].includes(i.p.v));
+  const expFee = (coState.slot.speed==='express' && hasShip && items.length) ? EXPRESS_FEE : 0;
+  const giftFee = (gift.on && items.length) ? GIFT_FEE : 0;
   const tax = Math.max(0,(sub-discount)) * cm.taxPct/100;
-  return { items, mrp, sub, discount, del, tax, total: Math.max(0, sub-discount+del+tax), count: items.reduce((a,i)=>a+i.qty,0) };
+  return { items, mrp, sub, discount, del, expFee, giftFee, tax,
+    total: Math.max(0, sub-discount+del+expFee+giftFee+tax), count: items.reduce((a,i)=>a+i.qty,0) };
 }
 function setQty(id, qty){
   qty = Math.max(0, Math.min(20, qty));
@@ -662,6 +718,14 @@ function updateBadges(){
   const unread = notifs.filter(n=>!n.read).length;
   const bc = $('#bellCount'); if(bc){ bc.textContent = unread; bc.classList.toggle('hidden', !unread); }
 }
+function giftBoxHTML(){
+  return `<div class="gift-box">
+    <div class="toggle-row" style="border:none;padding:0"><span>🎁 ${t('giftWrap')} <b>+ ${fmt(GIFT_FEE)}</b></span><label class="switch"><input type="checkbox" id="giftOn" ${gift.on?'checked':''}/><span class="slider"></span></label></div>
+    ${gift.on?`<div class="gift-row"><select id="giftOcc">${GIFT_OCCASIONS.map((o,i)=>`<option value="${i}" ${gift.occasion==i?'selected':''}>${HI()?o.hi:o.en}</option>`).join('')}</select></div>
+    <textarea id="giftMsg" maxlength="140" placeholder="${t('giftMsgPh')}">${esc(gift.msg)}</textarea>
+    <label class="f-check"><input type="checkbox" id="giftHide" ${gift.hide?'checked':''}/> ${t('giftHide')}</label>`:''}
+  </div>`;
+}
 function renderCart(){
   const tt = cartTotals(), box = $('#cartItems'), foot = $('#cartFoot');
   if(!box || !foot) return;
@@ -681,14 +745,25 @@ function renderCart(){
   box.innerHTML = tt.items.map(({p,qty})=>`<div class="cart-item"><span class="ce ${p.g}">${mediaHTML(p)}</span>
     <div class="ci"><b>${esc(p.n)}</b><small>${esc(p.s||'')} • ${fmt(p.p)}</small>
     <div class="ci-row"><span class="mini-qty"><button data-cdec="${p.id}">−</button>${qty}<button data-cinc="${p.id}">+</button></span>
-    <span class="ci-price">${fmt(p.p*qty)}</span></div></div></div>`).join('');
+    <span class="ci-price">${fmt(p.p*qty)}</span></div></div></div>`).join('')
+    + giftBoxHTML();
   $$('[data-cinc]',box).forEach(b=>b.onclick=()=>setQty(b.dataset.cinc,(cart[b.dataset.cinc]||0)+1));
   $$('[data-cdec]',box).forEach(b=>b.onclick=()=>setQty(b.dataset.cdec,(cart[b.dataset.cdec]||0)-1));
+  const gOn = $('#giftOn',box);
+  if(gOn) gOn.onchange = ()=>{ gift.on = gOn.checked; saveGift(); renderCart(); };
+  const gOcc = $('#giftOcc',box);
+  if(gOcc) gOcc.onchange = ()=>{ gift.occasion = +gOcc.value; saveGift(); };
+  const gMsg = $('#giftMsg',box);
+  if(gMsg) gMsg.oninput = ()=>{ gift.msg = gMsg.value; saveGift(); };
+  const gHide = $('#giftHide',box);
+  if(gHide) gHide.onchange = ()=>{ gift.hide = gHide.checked; saveGift(); };
   foot.innerHTML = `
     <div class="coupon-box"><input id="couponInput" placeholder="${t('couponPh')}" value="${activeCoupon||''}"/><button class="btn secondary sm" id="couponApply">${activeCoupon?t('remove'):t('apply')}</button></div>
     ${tt.discount?`<div class="bill-row"><span>${t('couponLbl')} (${activeCoupon})</span><span class="off">− ${fmt(tt.discount)}</span></div>`:''}
     <div class="bill-row"><span>${t('subtotal')}</span><span>${fmt(tt.sub)}</span></div>
     <div class="bill-row"><span>${t('delivery')}</span><span>${tt.del?fmt(tt.del):`<b class="off">${t('free')}</b>`}</span></div>
+    ${tt.expFee?`<div class="bill-row"><span>⚡ ${t('expFee')}</span><span>${fmt(tt.expFee)}</span></div>`:''}
+    ${tt.giftFee?`<div class="bill-row"><span>🎁 ${t('giftFee')}</span><span>${fmt(tt.giftFee)}</span></div>`:''}
     <div class="bill-row"><span>${t('tax')} (${cm.taxPct}%)</span><span>${fmt(tt.tax)}</span></div>
     <div class="bill-row"><span class="off">${t('saveMrp')}</span><span class="off">${fmt(tt.mrp-tt.sub)}</span></div>
     <div class="bill-row total"><span>${t('total')}</span><span>${fmt(tt.total)}</span></div>
@@ -820,14 +895,16 @@ function readAddrForm(prefix){
 }
 
 /* ============================================================
-   CHECKOUT + UPI
+   CHECKOUT + SLOTS + UPI
    ============================================================ */
 function openCheckout(){
   const tt = cartTotals();
   if(!tt.items.length){ toast('Cart is empty','🛒'); return; }
+  const svc = serviceSlots();
   coState = { step:0, addr:coState.addr||{}, pay:coState.pay||'upi',
     upi:coState.upi&&coState.upi.id ? coState.upi : { id:'', verified:false, name:'', app:'GPay' },
-    addrId:addrs.length?addrs[0].id:null, newAddr:!addrs.length };
+    addrId:addrs.length?addrs[0].id:null, newAddr:!addrs.length,
+    slot:{ food:'asap', speed:coState.slot?coState.slot.speed:'standard', service:svc.length?svc[0].v:'' } };
   renderCheckout(); closeAll(); openModal('checkoutModal');
 }
 function upiPanelHTML(total){
@@ -852,12 +929,27 @@ function checkoutAddrHTML(){
     ${addrFormHTML('co')}
     <label class="f-check"><input type="checkbox" id="coSaveBook" checked/> 💾 ${t('addrSaveBook')}</label>`;
 }
+function slotHTML(){
+  const tt = cartTotals();
+  const hasFood = tt.items.some(i=>i.p.v==='food');
+  const hasSvc = tt.items.some(i=>i.p.v==='services');
+  const hasShip = tt.items.some(i=>!['food','services'].includes(i.p.v));
+  if(!hasFood && !hasSvc && !hasShip) return '';
+  let h = `<div class="addr-head" style="margin-top:16px"><h4>🕐 ${t('slotTitle')}</h4></div>`;
+  if(hasFood) h += `<div class="slot-sec"><h4>🍔 ${t('slotFood')}</h4><div class="slot-pills">${foodSlots().map(s=>`<button class="slot-pill ${coState.slot.food===s.v?'sel':''}" data-slotf="${esc(s.v)}">${esc(s.l)}</button>`).join('')}</div></div>`;
+  if(hasSvc) h += `<div class="slot-sec"><h4>🛠️ ${t('slotSvc')}</h4><div class="slot-pills">${serviceSlots().map(s=>`<button class="slot-pill ${coState.slot.service===s.v?'sel':''}" data-slots="${esc(s.v)}">${esc(s.l)}</button>`).join('')}</div></div>`;
+  if(hasShip) h += `<div class="slot-sec"><h4>📦 ${t('slotSpeed')}</h4><div class="slot-pills">
+    <button class="slot-pill ${coState.slot.speed==='standard'?'sel':''}" data-slotspeed="standard">${t('slotStd')}<small>${t('delivery')}: ${fmt(settings.commerce.deliveryFee)}</small></button>
+    <button class="slot-pill ${coState.slot.speed==='express'?'sel':''}" data-slotspeed="express">⚡ ${t('slotExp')}<small>+ ${fmt(EXPRESS_FEE)}</small></button></div></div>`;
+  return h;
+}
 function renderCheckout(){
   const tt = cartTotals(), box = $('#checkoutBox'); if(!box) return;
   if(coState.step===0) box.innerHTML = `
     <div class="modal-head"><h3>🧾 ${HI()?'चेकआउट':'Checkout'} — ${t('coAddr')}</h3><button class="icon-btn" onclick="document.getElementById('checkoutModal').classList.remove('show')">✕</button></div>
     <div class="modal-body"><div class="co-steps"><div class="active">1. ${t('coAddr')}</div><div>2. ${t('coPay')}</div><div>3. ${t('coDone')}</div></div>
     ${checkoutAddrHTML()}
+    ${slotHTML()}
     <div class="bill-row total"><span>${t('coPayable')}</span><span>${fmt(tt.total)}</span></div>
     <button class="btn primary full" id="coNext" style="margin-top:12px">${t('coContinue')}</button></div>`;
   else if(coState.step===1) box.innerHTML = `
@@ -869,14 +961,19 @@ function renderCheckout(){
     <div class="bill-row"><span>${t('coItems')} (${tt.count})</span><span>${fmt(tt.sub)}</span></div>
     ${tt.discount?`<div class="bill-row"><span>${t('coCoupon')}</span><span class="off">− ${fmt(tt.discount)}</span></div>`:''}
     <div class="bill-row"><span>${t('coDelTax')}</span><span>${fmt(tt.del+tt.tax)}</span></div>
+    ${tt.expFee?`<div class="bill-row"><span>⚡ ${t('expFee')}</span><span>${fmt(tt.expFee)}</span></div>`:''}
+    ${tt.giftFee?`<div class="bill-row"><span>🎁 ${t('giftFee')}</span><span>${fmt(tt.giftFee)}</span></div>`:''}
     <div class="bill-row total"><span>${t('coTotal')}</span><span>${fmt(tt.total)}</span></div>
     <div style="display:flex;gap:8px;margin-top:12px"><button class="btn secondary" id="coBack">${t('coBack')}</button>
     <button class="btn primary" style="flex:1" id="coPlace">${t('coPlace')} • ${fmt(tt.total)}</button></div></div>`;
   if(coState.step===0){
     $$('[data-addrsel]',box).forEach(el=>el.onclick=()=>{ coState.addrId=el.dataset.addrsel; renderCheckout(); });
-    const cn = $('#coNext');
+    $$('[data-slotf]',box).forEach(el=>el.onclick=()=>{ coState.slot.food=el.dataset.slotf; renderCheckout(); });
+    $$('[data-slots]',box).forEach(el=>el.onclick=()=>{ coState.slot.service=el.dataset.slots; renderCheckout(); });
+    $$('[data-slotspeed]',box).forEach(el=>el.onclick=()=>{ coState.slot.speed=el.dataset.slotspeed; renderCheckout(); });
     const nb = $('#coNew'); if(nb) nb.onclick = ()=>{ coState.newAddr=true; renderCheckout(); };
     const bs = $('#coBackSaved'); if(bs) bs.onclick = ()=>{ coState.newAddr=false; renderCheckout(); };
+    const cn = $('#coNext');
     if(cn) cn.onclick = ()=>{
       if(addrs.length && !coState.newAddr){
         const a = addrs.find(x=>x.id===coState.addrId) || addrs[0];
@@ -886,7 +983,7 @@ function renderCheckout(){
         if(!a.name || !a.phone || !a.line){ toast('Please fill name, phone & address','⚠️'); return; }
         coState.addr = a;
         const sb = $('#coSaveBook');
-        if(sb && sb.checked){ addrs.unshift(a); saveAddrs(); }
+        if(sb && sb.checked){ addrs.unshift(a); saveAddrs(); cloudUp(); }
       }
       coState.step=1; renderCheckout();
     };
@@ -921,13 +1018,15 @@ function renderCheckout(){
         const o = { id:uid('AW').toUpperCase(), items:tt.items.map(i=>({id:i.p.id,qty:i.qty,price:i.p.p})),
           total:Math.round(tt.total), sub:Math.round(tt.sub), discount:Math.round(tt.discount),
           status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
-          addr:coState.addr, pay:payLabel, upi:coState.pay==='upi'?coState.upi.id:'', placedAt:Date.now() };
-        orders.push(o); saveOrders();
+          addr:coState.addr, pay:payLabel, upi:coState.pay==='upi'?coState.upi.id:'', placedAt:Date.now(),
+          slot:Object.assign({}, coState.slot), gift:gift.on?Object.assign({}, gift):null, rating:null };
+        orders.push(o); saveOrders(); cloudUp();
         cart={}; activeCoupon=null; saveCart(); LS.del('aw_coupon_v1'); updateBadges();
         notify(HI()?'ऑर्डर कन्फर्म 🎉':'Order confirmed 🎉', `#${o.id} • ${fmt(o.total)}`, '🎉');
         const soon = HI() ? `${esc(o.addr.city)} में जल्द आ रहा है` : `arriving soon at ${esc(o.addr.city)}`;
         box.innerHTML = `<div class="modal-body"><div class="success-box"><div class="big">🎉</div>
           <h2>${t('coSuccess')}</h2><p class="muted">${HI()?'ऑर्डर':'Order'} <b>#${o.id}</b> • ${fmt(o.total)} • ${soon}</p>
+          ${slotSummary(o)?`<p class="muted small">🕐 ${esc(slotSummary(o))}</p>`:''}
           <div class="track-steps" style="margin:18px 0">${[0,1,2,3,4].map(i=>`<div class="tstep ${i===0?'done':''}"><div class="tdot">${i===0?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
           <div style="display:flex;gap:8px;justify-content:center"><button class="btn primary" id="okTrack">📍 ${t('coTrack')}</button>
           <button class="btn secondary" id="okShop">${t('coShop')}</button></div></div></div>`;
@@ -978,15 +1077,16 @@ function trackerMapHTML(o){
     </svg>
     <div class="map-top">
       <span class="map-eta">⏱️ ${t('mapEta')} <b>${etas[Math.min(4,o.status)]}</b></span>
-      <span class="rider-chip">🛵 ${rider.name} • ★ ${rider.rating}</span>
+      <span class="rider-chip">🛵 ${rider.name} • ★ ${riderAvg(rider.name)}</span>
     </div>
   </div>`;
 }
 function animateRider(o, token){
   const path = document.getElementById('routePath');
   const mark = document.getElementById('riderMark');
-  if(!path || !mark) return;
-  const len = path.getTotalLength();
+  if(!path || !mark || !path.getTotalLength) return;
+  let len = 0;
+  try{ len = path.getTotalLength(); }catch{ return; }
   let cur = 0;
   const target = o.status >= 4 ? 1 : Math.min(0.95, (o.status + 0.55) / 4);
   const step = () => {
@@ -1011,14 +1111,20 @@ function openTrack(id){
   const rider = riderFor(o);
   const riderTxt = o.status>=4 ? (HI()?'डिलीवर हो गया। आनंद लें!':'Delivered. Enjoy!')
     : (HI()?`${rider.name} रास्ते में है — जल्द पहुंचेगा`:`${rider.name} is ${['being assigned','packing your items','on the way','nearby'][Math.min(o.status,3)]} — arriving soon…`);
+  const sum = slotSummary(o);
   box.innerHTML = `<div class="modal-head"><h3>📍 #${o.id}</h3><button class="icon-btn" onclick="document.getElementById('trackModal').classList.remove('show')">✕</button></div>
   <div class="modal-body">
     ${trackerMapHTML(o)}
     <div class="track-steps" style="margin:8px 0 14px">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
-    <div class="rev"><b>🛵 ${t('mapRider')}: ${rider.name} • ★ ${rider.rating}</b><p>${riderTxt}</p></div>
+    <div class="rev"><b>🛵 ${t('mapRider')}: ${rider.name} • ★ ${riderAvg(rider.name)}</b><p>${riderTxt}</p></div>
+    ${sum?`<div class="rev"><b>🕐 ${t('slotTitle')}</b><p>${esc(sum)}</p></div>`:''}
+    ${o.gift?`<div class="rev"><b>🎁 ${t('giftTitle')} — ${esc(occName(o.gift.occasion))}</b><p>"${esc(o.gift.msg||'—')}"</p></div>`:''}
     ${o.return?`<div class="rev"><b>↩ ${t('retStatus')}: ${retStatusName(o.return.status)}</b>
       <div class="track-steps" style="margin-top:10px">${[0,1,2,3].map(i=>`<div class="tstep ${i<=o.return.status?'done':''}"><div class="tdot">${i<=o.return.status?'✓':i+1}</div>${retStatusName(i)}</div>`).join('')}</div>
       <p>${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</p></div>`:''}
+    ${o.status===4 ? (o.rating
+      ? `<div class="rev"><b>⭐ ${t('rateBtn')}</b><p style="color:#f59e0b;font-size:16px">${stars(o.rating.stars)}</p></div>`
+      : `<button class="btn secondary full" id="trackRate" style="margin-bottom:10px">⭐ ${t('rateBtn')} — ${rider.name}</button>`) : ''}
     <div class="rev"><b>🧾 ${t('coItems')}</b><p>${items.map(esc).join('<br/>')}</p></div>
     <div class="rev"><b>📍 ${t('pDeliverTo')}</b><p>${esc(o.addr.name)} • ${esc(o.addr.line)}, ${esc(o.addr.city)} ${esc(o.addr.pin)}</p></div>
     <div class="bill-row total"><span>${HI()?'भुगतान':'Paid via'} ${esc(o.pay)}</span><span>${fmt(o.total)}</span></div>
@@ -1027,11 +1133,47 @@ function openTrack(id){
   openModal('trackModal');
   trackToken++;
   animateRider(o, trackToken);
+  const tr = $('#trackRate');
+  if(tr) tr.onclick = ()=>openRate(id);
   const sn = $('#simNext');
   if(sn) sn.onclick = ()=>{
-    o.status=Math.min(4,o.status+1); saveOrders();
+    o.status=Math.min(4,o.status+1); saveOrders(); cloudUp();
     notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, o.status===4?'✅':'📦');
     openTrack(id); if(route.page==='orders')renderPage(); toast('Status: '+statusName(o.status),'📦');
+  };
+}
+
+/* ============================================================
+   RIDER RATINGS
+   ============================================================ */
+let rateSel = { stars:5, tags:new Set() };
+function openRate(id){
+  const o = orders.find(x=>x.id===id); if(!o || o.rating) return;
+  const box = $('#rateBox'); if(!box) return;
+  const rider = riderFor(o);
+  rateSel = { stars:5, tags:new Set() };
+  box.innerHTML = `<div class="modal-head"><h3>⭐ ${t('rateTitle')}</h3>
+    <button class="icon-btn" onclick="document.getElementById('rateModal').classList.remove('show')">✕</button></div>
+  <div class="modal-body"><div class="center"><div style="font-size:52px">🛵</div>
+    <h3 style="margin:6px 0">${rider.name} • ★ ${riderAvg(rider.name)}</h3>
+    <p class="muted small">${t('rateHow')}</p></div>
+    <div class="star-row">${[1,2,3,4,5].map(i=>`<button class="star-btn lit" data-star="${i}">★</button>`).join('')}</div>
+    <div class="tag-pills">${RATING_TAGS.map((tg,i)=>`<button class="tag-pill" data-tag="${i}">${HI()?tg.hi:tg.en}</button>`).join('')}</div>
+    <button class="btn primary full" id="rateGo" style="margin-top:12px">${t('rateSubmit')}</button>
+  </div>`;
+  openModal('rateModal');
+  $$('[data-star]',box).forEach(b=>b.onclick=()=>{ rateSel.stars=+b.dataset.star; $$('[data-star]',box).forEach(x=>x.classList.toggle('lit',+x.dataset.star<=rateSel.stars)); });
+  $$('[data-tag]',box).forEach(b=>b.onclick=()=>{ const i=+b.dataset.tag; rateSel.tags.has(i)?rateSel.tags.delete(i):rateSel.tags.add(i); b.classList.toggle('sel'); });
+  const go = $('#rateGo');
+  if(go) go.onclick = ()=>{
+    o.rating = { stars:rateSel.stars, tags:[...rateSel.tags], ts:Date.now() };
+    saveOrders(); cloudUp();
+    const rr = riderRatings[rider.name] || []; rr.push(rateSel.stars);
+    riderRatings[rider.name] = rr; LS.set('aw_rider_ratings_v1', riderRatings);
+    const rm = $('#rateModal'); if(rm) rm.classList.remove('show');
+    if(route.page==='orders') renderPage();
+    const tm = $('#trackModal'); if(tm && tm.classList.contains('show')) openTrack(id);
+    toast(t('rateThanks'),'⭐');
   };
 }
 
@@ -1056,7 +1198,7 @@ function openReturn(id){
   if(go) go.onclick = ()=>{
     const sel = ($('input[name=rreason]:checked',box)||{value:0}).value;
     o.return = { reason:+sel, detail:($('#retDetail')||{value:''}).value.trim(), status:0, ts:Date.now(), amt:o.total };
-    saveOrders();
+    saveOrders(); cloudUp();
     const m = $('#returnModal'); if(m) m.classList.remove('show');
     notify(HI()?'रिटर्न रिक्वेस्ट ↩':'Return requested ↩', `#${o.id} • ${retStatusName(0)}`, '↩');
     if(route.page==='orders') renderPage();
@@ -1078,7 +1220,7 @@ setInterval(()=>{
         done?'💰':'↩');
     }
   });
-  if(moved){ saveOrders(); if(route.page==='orders') renderPage(); }
+  if(moved){ saveOrders(); cloudUp(); if(route.page==='orders') renderPage(); }
 }, 25000);
 
 /* ============================================================
@@ -1119,9 +1261,9 @@ function openAuth(mode='login'){
       if(sv) sv.onclick = ()=>{
         const a = readAddrForm('auA');
         if(!a.name||!a.phone||!a.line){ toast('Please fill name, phone & address','⚠️'); return; }
-        addrs.unshift(a); saveAddrs(); render(); toast(HI()?'पता सेव हो गया':'Address saved','📍');
+        addrs.unshift(a); saveAddrs(); cloudUp(); render(); toast(HI()?'पता सेव हो गया':'Address saved','📍');
       };
-      $$('[data-aadel]',form).forEach(b=>b.onclick=()=>{ addrs = addrs.filter(x=>x.id!==b.dataset.aadel); saveAddrs(); render(); });
+      $$('[data-aadel]',form).forEach(b=>b.onclick=()=>{ addrs = addrs.filter(x=>x.id!==b.dataset.aadel); saveAddrs(); cloudUp(); render(); });
       return;
     }
     form.innerHTML = `${mode==='signup'?`<div class="field"><label>${t('auName')}</label><input type="text" id="auName" placeholder="${t('auName')}"/></div>`:''}
@@ -1166,6 +1308,23 @@ function bindSearch(inputEl){
    CUSTOMIZER
    ============================================================ */
 const CUSTOM_TABS = [['store','🏪 Store'],['theme','🎨 Theme'],['home','🏠 Homepage'],['commerce','💰 Commerce'],['products','📦 Products'],['data','💾 Data']];
+function cloudCardHTML(){
+  const on = cloudOn();
+  let last = '';
+  try{ const c = Cloud.ensure(); if(on && c.lastSync) last = `<small class="muted">• ${t('cloudLast')} ${timeAgo(c.lastSync)}</small>`; }catch{}
+  let url = '';
+  try{ url = Cloud.ensure().url || ''; }catch{}
+  return `<div class="c-group"><h4>☁️ ${t('cloudTitle')}</h4>
+    <div class="cloud-card">
+      <div class="cloud-status"><span class="dot ${on?'on':''}"></span>${on?t('cloudOn'):t('cloudLocal')} ${last}</div>
+      <p class="muted small" style="margin:0 0 4px">${t('cloudDesc')}</p>
+      <div class="field"><label>${t('cloudUrl')}</label><input type="text" id="cloudUrl" value="${esc(url)}" placeholder="https://your-app.firebaseio.com"/></div>
+      <div class="cloud-row">
+        ${on?`<button class="btn secondary full sm" id="cloudSync">🔄 ${t('cloudSync')}</button><button class="btn danger-ghost sm" id="cloudOff">${t('cloudOff')}</button>`
+        :`<button class="btn primary full sm" id="cloudGo">☁️ ${t('cloudConnect')}</button>`}
+      </div>
+    </div></div>`;
+}
 function renderCustomizer(tab='store'){
   const tabs = $('#customTabs'); if(!tabs) return;
   tabs.innerHTML = CUSTOM_TABS.map(([id,l])=>`<button class="${id===tab?'active':''}" data-ct="${id}">${l}</button>`).join('');
@@ -1238,14 +1397,14 @@ function renderCustomizer(tab='store'){
     };
     bindPmRows();
   }
-  if(tab==='data') B.innerHTML = `
+  if(tab==='data') B.innerHTML = cloudCardHTML() + `
     <div class="c-group"><h4>Backup & restore</h4>
       <p class="muted small">Export your theme, store content & product catalog as JSON. Import it on any device.</p>
       <div style="display:flex;gap:8px"><button class="btn secondary full" id="dExp">⬇ Export JSON</button><button class="btn secondary full" id="dImp">⬆ Import JSON</button></div></div>
     <div class="c-group"><h4>Demo data</h4>
       <div class="toggle-row"><span>Sample orders</span><button class="btn ghost sm" id="dSeed">Add sample</button></div>
       <div class="toggle-row"><span>Reset everything</span><button class="btn danger-ghost sm" id="dReset">Reset</button></div></div>
-    <div class="c-group"><h4>About</h4><p class="muted small">${getProducts().length} products • ${VERTICALS.length} verticals • ${orders.length} orders<br/>All data lives in your browser (localStorage).</p></div>`;
+    <div class="c-group"><h4>About</h4><p class="muted small">${getProducts().length} products • ${VERTICALS.length} verticals • ${orders.length} orders<br/>All data lives in your browser (localStorage)${cloudOn()?' + ☁️ cloud':''}.</p></div>`;
   bindCustomizer(tab);
 }
 function pmRow(p){
@@ -1260,12 +1419,12 @@ function bindPmRows(){
     extraProducts = extraProducts.filter(x=>x.id!==p.id); LS.set('aw_products_extra_v1', extraProducts);
     if(SEED_PRODUCTS.find(x=>x.id===p.id)){ deletedIds.push(p.id); LS.set('aw_products_deleted_v1', deletedIds); }
     delete editedProducts[p.id]; LS.set('aw_products_edited_v1', editedProducts);
-    delete cart[p.id]; saveCart(); updateBadges();
+    delete cart[p.id]; saveCart(); updateBadges(); cloudUp();
     renderCustomizer('products'); renderPage(); toast('Product deleted','🗑️');
   });
 }
 function bindCustomizer(tab){
-  const live = ()=>{ saveSettings(); applySettings(); applyChromeI18n(); renderNav(); renderPage(); };
+  const live = ()=>{ saveSettings(); cloudUp(); applySettings(); applyChromeI18n(); renderNav(); renderPage(); };
   const on = (id, ev, fn) => { const el = document.getElementById(id); if(el) el[ev] = fn; };
   if(tab==='store'){
     $$('#cLang button').forEach(b=>b.onclick=()=>{ settings.lang=b.dataset.l; saveSettings(); renderAll(); renderCustomizer('store'); });
@@ -1309,6 +1468,26 @@ function bindCustomizer(tab){
     on('dImp','onclick', ()=>{ const f=$('#importFile'); if(f) f.click(); });
     on('dSeed','onclick', ()=>{ seedSampleOrders(); toast('Sample orders added','📦'); });
     on('dReset','onclick', resetAll);
+    on('cloudGo','onclick', async ()=>{
+      const url = ($('#cloudUrl')||{value:''}).value.trim();
+      const btn = $('#cloudGo'); if(btn){ btn.disabled = true; btn.textContent = '⏳…'; }
+      const res = await Cloud.test(url);
+      if(res === 'ok'){
+        Cloud.ensure().url = url.replace(/\/+$/,''); Cloud.save();
+        try{ await Cloud.syncUp(); await Cloud.syncDown(true); }catch{}
+        renderAll(); renderCustomizer('data'); toast('☁️ Cloud connected!','☁️');
+      } else {
+        if(btn){ btn.disabled = false; }
+        renderCustomizer('data');
+        toast(res==='badurl' ? 'Paste a valid firebaseio.com URL' : res==='denied' ? 'Rules denied access — enable test mode' : 'Could not reach database', '⚠️');
+      }
+    });
+    on('cloudOff','onclick', ()=>{ Cloud.ensure().url=''; Cloud.save(); renderCustomizer('data'); if(route.page==='seller') renderPage(); toast('Cloud disconnected — local only','📴'); });
+    on('cloudSync','onclick', async ()=>{
+      const btn = $('#cloudSync'); if(btn){ btn.disabled = true; btn.textContent = '⏳…'; }
+      try{ await Cloud.syncUp(); await Cloud.syncDown(true); renderAll(); renderCustomizer('data'); toast('☁️ Synced!','☁️'); }
+      catch{ toast('Sync failed — check connection','⚠️'); renderCustomizer('data'); }
+    });
   }
 }
 function exportData(){
@@ -1390,6 +1569,7 @@ function openPM(id){
     } else extraProducts.push(obj);
     const ok1 = LS.set('aw_products_extra_v1',extraProducts), ok2 = LS.set('aw_products_edited_v1',editedProducts);
     if(!ok1 || !ok2) toast('Storage full — photo too large, try a smaller image','⚠️');
+    cloudUp();
     const pm2=$('#pmModal'); if(pm2) pm2.classList.remove('show');
     renderCustomizer('products'); renderPage();
     toast(id?'Product updated':'Product added to store','📦');
@@ -1403,6 +1583,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   try{ renderAll(); }catch(err){ console.error(err); }
   renderCart(); renderWish(); renderCities();
   bindDrawerClose();
+  try{
+    if(typeof Cloud !== 'undefined'){
+      Cloud.startPoll();
+      Cloud.syncDown(false).then(ch=>{ if(ch) renderAll(); }).catch(()=>{});
+    }
+  }catch{}
   const on = (id, fn) => { const el = document.getElementById(id); if(el) el.onclick = fn; };
   on('overlay', closeAll);
   on('btnCart', ()=>{ renderCart(); openDrawer('cartDrawer'); });

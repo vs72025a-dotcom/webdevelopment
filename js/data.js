@@ -213,6 +213,11 @@ en:{
   retTitle:'Return / Refund', retReason:'Reason for return', retDetail:'Details (optional)', retConfirm:'Confirm return', retStatus:'Refund status',
   r0:'Requested', r1:'Approved', r2:'Picked up', r3:'Refunded', retTo:'Refund to',
   mapEta:'Arriving in', mapRider:'Your rider', mapStore:'Store', mapHome:'Home',
+  slotTitle:'Delivery slot', slotFood:'Food delivery', slotASAP:'ASAP · 30–40 min', slotSpeed:'Delivery speed', slotStd:'Standard · 2–4 days', slotExp:'Express · tomorrow', slotSvc:'Service visit', slotToday:'Today', slotTomw:'Tomorrow',
+  rateTitle:'Rate your rider', rateBtn:'Rate rider', rateThanks:'Thanks for rating!', rateHow:'How was your delivery?', rateSubmit:'Submit rating',
+  giftTitle:'Make it a gift', giftWrap:'Gift wrap + message', giftOcc:'Occasion', giftMsg:'Gift message', giftMsgPh:'Write your message…', giftHide:'Hide prices (gift receipt)', giftFee:'Gift wrap',
+  expFee:'Express delivery',
+  cloudTitle:'Cloud sync (Firebase)', cloudDesc:'Sync orders, products & settings across devices with a free Firebase database.', cloudUrl:'Database URL', cloudConnect:'Connect', cloudOff:'Disconnect', cloudOn:'Connected', cloudLocal:'Local only', cloudSync:'Sync now', cloudLast:'Last synced',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -247,6 +252,11 @@ hi:{
   retTitle:'रिटर्न / रिफंड', retReason:'रिटर्न का कारण', retDetail:'विवरण (वैकल्पिक)', retConfirm:'रिटर्न कन्फर्म करें', retStatus:'रिफंड स्टेटस',
   r0:'रिक्वेस्ट हुई', r1:'अप्रूव हुआ', r2:'पिकअप हुआ', r3:'रिफंड हुआ', retTo:'रिफंड जाएगा',
   mapEta:'पहुचेगा', mapRider:'आपका राइडर', mapStore:'स्टोर', mapHome:'घर',
+  slotTitle:'डिलीवरी स्लॉट', slotFood:'खाने की डिलीवरी', slotASAP:'जल्दी · 30–40 मि.', slotSpeed:'डिलीवरी स्पीड', slotStd:'स्टैंडर्ड · 2–4 दिन', slotExp:'एक्सप्रेस · कल', slotSvc:'सर्विस विज़िट', slotToday:'आज', slotTomw:'कल',
+  rateTitle:'राइडर को रेट करें', rateBtn:'राइडर रेट करें', rateThanks:'रेटिंग के लिए धन्यवाद!', rateHow:'डिलीवरी कैसी रही?', rateSubmit:'रेटिंग भेजें',
+  giftTitle:'गिफ्ट बनाएं', giftWrap:'गिफ्ट रैप + मैसेज', giftOcc:'अवसर', giftMsg:'गिफ्ट मैसेज', giftMsgPh:'अपना मैसेज लिखें…', giftHide:'कीमतें छुपाएं (गिफ्ट रसीद)', giftFee:'गिफ्ट रैप',
+  expFee:'एक्सप्रेस डिलीवरी',
+  cloudTitle:'क्लाउड सिंक (Firebase)', cloudDesc:'फ्री Firebase डेटाबेस से ऑर्डर, प्रोडक्ट व सेटिंग सभी डिवाइस पर सिंक करें।', cloudUrl:'डेटाबेस URL', cloudConnect:'कनेक्ट', cloudOff:'हटाएं', cloudOn:'जुड़ा', cloudLocal:'सिर्फ लोकल', cloudSync:'अभी सिंक', cloudLast:'आखिरी सिंक',
 }};
 
 const RETURN_REASONS = [
@@ -259,3 +269,13 @@ const RETURN_REASONS = [
 ];
 
 const RIDER_NAMES = ['Arjun','Ravi','Sana','Vikram','Ishaan','Meera','Kabir','Divya'];
+
+const GIFT_FEE = 29, EXPRESS_FEE = 49;
+const GIFT_OCCASIONS = [
+  { en:'Birthday', hi:'जन्मदिन' }, { en:'Anniversary', hi:'सालगिरह' }, { en:'Wedding', hi:'शादी' },
+  { en:'Thank You', hi:'धन्यवाद' }, { en:'Festival', hi:'त्योहार' }, { en:'Other', hi:'अन्य' },
+];
+const RATING_TAGS = [
+  { en:'Polite', hi:'विनम्र' }, { en:'Superfast', hi:'बहुत तेज़' }, { en:'Careful packing', hi:'सावधानी से पैकिंग' },
+  { en:'On time', hi:'समय पर' }, { en:'Friendly', hi:'मिलनसार' },
+];
