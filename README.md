@@ -74,6 +74,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **💰 Rider tips** — tip delivered orders from tracking (₹10–100 presets or custom); per-rider totals, one-tap once-only, 💰 chip on order cards
 
+**🎁 Gift-wrapped first deliveries** — gifted subscriptions can add gift wrap (+fee) with an occasion; the first delivery arrives wrapped with your message
+
+**🏆 Rider tip leaderboard** — live top-5 board in tracking: demo legends merged with your real tips, your rider highlighted
+
+**🔄 Smart reorder shelf** — home section that notices food/grocery you haven't ordered in a while ("running low!"), sorted by need, one-tap add; toggleable in Customize → Homepage
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs

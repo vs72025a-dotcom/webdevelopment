@@ -65,7 +65,7 @@ const saveSubs = () => LS.set('aw_subs_v1', subs);
 let riderTips = LS.get('aw_tips_v1', {});
 const saveTips = () => LS.set('aw_tips_v1', riderTips);
 let boxDraft = { name:'', items:{}, freq:14 };
-let subGiftId = null, giftDraft = { to:'', msg:'', startIn:7 };
+let subGiftId = null, giftDraft = { to:'', msg:'', startIn:7, wrap:false, occasion:0 };
 let myRef = LS.get('aw_ref_v1', null);
 if(!myRef || !myRef.code){
   myRef = { code:'AW-' + Array.from({length:6},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join(''), used:null, count:0 };
@@ -326,9 +326,9 @@ function fulfillSubs(){
       status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
       addr, pay:'Subscription 🔁', upi:'', placedAt:Date.now(), slot:{}, gift:null, rating:null, subId:s.id };
     orders.push(o); made.push(o);
-    if(s.gift){ o.giftMsg = s.gift.msg||''; notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}${s.gift.msg?': \u201c'+s.gift.msg+'\u201d':''}`, '🎁'); s.gift = null; }
+    if(s.gift){ o.giftMsg = s.gift.msg||''; if(s.gift.wrap){ o.gift = { on:true, msg:s.gift.msg||'', occasion:s.gift.occasion||0, hide:false }; o.total = Math.max(0,o.total+GIFT_FEE); } notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}${s.gift.msg?': \u201c'+s.gift.msg+'\u201d':''}`, '🎁'); s.gift = null; }
     s.nextTs = Date.now()+s.freq*864e5;
-    const earn = loyEarnFor(total);
+    const earn = loyEarnFor(o.total);
     if(earn>0) loyAdd(earn, `🔁 ${HI()?'सब्सक्रिप्शन':'Subscription'} #${o.id}`);
   });
   if(made.length){
@@ -366,12 +366,14 @@ function openSubs(){
   const gt = $('#giftTo'); if(gt) gt.oninput = ()=>{ giftDraft.to = gt.value; };
   const gm = $('#giftMsg'); if(gm) gm.oninput = ()=>{ giftDraft.msg = gm.value; };
   $$('[data-gstart]',box).forEach(b=>b.onclick=()=>{ giftDraft.startIn = +b.dataset.gstart; openSubs(); });
+  const gw = $('#giftWrapOn'); if(gw) gw.onchange = ()=>{ giftDraft.wrap = gw.checked; openSubs(); };
+  const go2 = $('#giftOcc'); if(go2) go2.onchange = ()=>{ giftDraft.occasion = +go2.value; };
   const gs = $('#giftSave'); if(gs) gs.onclick = saveGiftSub;
   const gc = $('#giftCancel'); if(gc) gc.onclick = ()=>{ subGiftId=null; openSubs(); };
   $$('[data-subskip]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subskip); if(s){ s.nextTs=Date.now()+s.freq*864e5; saveSubs(); cloudUp(); openSubs(); toast(t('subNext')+': '+new Date(s.nextTs).toLocaleDateString(),'⏭'); } });
   $$('[data-subpause]',box).forEach(b=>b.onclick=()=>{ const s=subs.find(x=>x.id===b.dataset.subpause); if(s){ s.active=s.active===false?true:false; saveSubs(); cloudUp(); openSubs(); } });
   $$('[data-subdel]',box).forEach(b=>b.onclick=()=>{ subs=subs.filter(x=>x.id!==b.dataset.subdel); saveSubs(); cloudUp(); openSubs(); });
-  $$('[data-subgift]',box).forEach(b=>b.onclick=()=>{ subGiftId=b.dataset.subgift; giftDraft={to:'',msg:'',startIn:7}; openSubs(); });
+  $$('[data-subgift]',box).forEach(b=>b.onclick=()=>{ subGiftId=b.dataset.subgift; giftDraft={to:'',msg:'',startIn:7,wrap:false,occasion:0}; openSubs(); });
 }
 function applyReferral(code){
   code = String(code||'').trim().toUpperCase().replace(/^AW-/,'');
@@ -523,6 +525,8 @@ function giftFormHTML(){
   return `<div class="build-box" style="margin-bottom:14px"><div class="addr-head" style="margin-top:0"><h4>🎁 ${t('giftSub')}</h4></div>
     <div class="coupon-box"><input id="giftTo" maxlength="30" placeholder="${t('giftToPh')}" value="${esc(giftDraft.to)}"/></div>
     <div class="coupon-box"><input id="giftMsg" maxlength="80" placeholder="${t('giftMsgPh')}" value="${esc(giftDraft.msg)}"/></div>
+    <div class="toggle-row" style="border:none;padding:8px 0"><span>🎁 ${t('giftWrapFirst')} <b>+ ${fmt(GIFT_FEE)}</b></span><label class="switch"><input type="checkbox" id="giftWrapOn" ${giftDraft.wrap?'checked':''}/><span class="slider"></span></label></div>
+    ${giftDraft.wrap?`<div class="coupon-box"><select id="giftOcc">${GIFT_OCCASIONS.map((o,i)=>`<option value="${i}" ${giftDraft.occasion==i?'selected':''}>${HI()?o.hi:o.en}</option>`).join('')}</select></div>`:''}
     <small class="muted">${t('giftStart')}</small>
     <div class="slot-pills" style="margin:6px 0 10px">${[1,3,7,30].map(d=>`<button class="slot-pill ${giftDraft.startIn==d?'sel':''}" data-gstart="${d}">${giftStartLabel(d)}</button>`).join('')}</div>
     <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1" id="giftSave">🎁 ${t('giftSave')}</button><button class="btn ghost" id="giftCancel">${t('giftCancel')}</button></div></div>`;
@@ -530,11 +534,11 @@ function giftFormHTML(){
 function saveGiftSub(){
   const s = subs.find(x=>x.id===subGiftId); if(!s) return;
   const startTs = Date.now()+giftDraft.startIn*864e5;
-  s.gift = { to:giftDraft.to.trim()||'🎁', msg:giftDraft.msg.trim(), startTs };
+  s.gift = { to:giftDraft.to.trim()||'🎁', msg:giftDraft.msg.trim(), startTs, wrap:!!giftDraft.wrap, occasion:giftDraft.occasion||0 };
   s.nextTs = startTs;
   saveSubs(); cloudUp();
   notify('🎁 '+t('giftSent'), `${subName(s)} • ${t('giftFor')} ${s.gift.to}`, '🎁');
-  subGiftId = null; giftDraft = { to:'', msg:'', startIn:7 };
+  subGiftId = null; giftDraft = { to:'', msg:'', startIn:7, wrap:false, occasion:0 };
   openSubs();
 }
 function tipRider(o, amt){
@@ -546,13 +550,49 @@ function tipRider(o, amt){
   notify(`💰 ${t('tipThanks')}`, `${r.name} • ${fmt(o.tip)} 🙏`, '💰');
   return true;
 }
+function tipBoardHTML(o){
+  const me = o ? riderFor(o).name : '';
+  const map = {};
+  TIP_BOARD.forEach(r=>{ map[r.n] = r.pts; });
+  Object.entries(riderTips).forEach(e=>{ map[e[0]] = (map[e[0]]||0)+e[1]; });
+  const rows = Object.entries(map).map(e=>({n:e[0],pts:e[1]})).sort((a,b)=>b.pts-a.pts).slice(0,5);
+  const medals = ['🥇','🥈','🥉'];
+  return `<div class="addr-head" style="margin-top:12px"><h4>🏆 ${t('tipBoard')}</h4></div>
+  <div class="lb-list">${rows.map((r,i)=>`<div class="lb-row${r.n===me?' you':''}"><span>${medals[i]||`${i+1}.`}</span><b style="flex:1">🛵 ${esc(r.n)}</b><span>${fmt(r.pts)}</span></div>`).join('')}</div>`;
+}
+function reorderSuggestions(){
+  const byPid = {};
+  (orders||[]).forEach(o=>(o.items||[]).forEach(i=>{
+    const p = getP(i.id);
+    if(!p || !['food','grocery'].includes(p.v)) return;
+    const ts = o.placedAt || Date.now();
+    if(!byPid[p.id] || ts > byPid[p.id].last) byPid[p.id] = { last:ts, times:(byPid[p.id]?byPid[p.id].times+1:1) };
+  }));
+  const out = [];
+  Object.entries(byPid).forEach(e=>{
+    const p = getP(e[0]); if(!p) return;
+    const cycle = p.v==='food' ? 7 : 14;
+    const days = (Date.now()-e[1].last)/864e5;
+    if(days < cycle*0.5) return;
+    out.push({ p, days, times:e[1].times, low:days>=cycle });
+  });
+  return out.sort((a,b)=>b.days-a.days).slice(0,8);
+}
+function reorderHTML(){
+  const list = reorderSuggestions();
+  if(!list.length) return '';
+  return `<section class="section"><div class="sec-head"><div><h2>🔄 ${t('secReorder')}</h2><p>${t('secReorderSub')}</p></div></div>
+  <div class="reorder-row">${list.map(s=>`<div class="reorder-card"><span class="ce ${s.p.g}" data-open="${s.p.id}">${mediaHTML(s.p)}</span>
+    <div style="flex:1"><b class="small">${esc(s.p.n)}</b><br/><small class="muted">${s.times}× ${t('reBought')} • ${timeAgo(Date.now()-s.days*864e5)}</small>${s.low?`<br/><span class="status st-placed" style="font-size:10px">⚠️ ${t('reLow')}</span>`:''}</div>
+    <button class="btn primary sm" data-inc="${s.p.id}">${t('addBtn')}</button></div>`).join('')}</div></section>`;
+}
 function tipHTML(o){
   if(!o || o.status!==4) return '';
   const r = riderFor(o);
-  if(o.tip) return `<div class="rev"><b>💰 ${t('tipThanks')}</b><p>${r.name} • ${fmt(o.tip)} 🙏 • ${fmt(riderTips[r.name]||o.tip)} ${t('tipTotal')}</p></div>`;
+  if(o.tip) return `<div class="rev"><b>💰 ${t('tipThanks')}</b><p>${r.name} • ${fmt(o.tip)} 🙏 • ${fmt(riderTips[r.name]||o.tip)} ${t('tipTotal')}</p>${tipBoardHTML(o)}</div>`;
   return `<div class="rev"><b>💰 ${t('tipTitle')} — ${r.name}</b>
     <div class="slot-pills" style="margin:10px 0">${TIP_AMOUNTS.map(a=>`<button class="slot-pill" data-tipamt="${a}">${fmt(a)}</button>`).join('')}</div>
-    <div class="coupon-box"><input id="tipCustom" type="number" min="1" max="1000" placeholder="${t('tipCustom')} (₹)"/><button class="btn primary sm" id="tipSend">${t('tipSend')}</button></div></div>`;
+    <div class="coupon-box"><input id="tipCustom" type="number" min="1" max="1000" placeholder="${t('tipCustom')} (₹)"/><button class="btn primary sm" id="tipSend">${t('tipSend')}</button></div>${tipBoardHTML(o)}</div>`;
 }
 function bindTip(o){
   $$('[data-tipamt]').forEach(b=>b.onclick=()=>{ if(tipRider(o, +b.dataset.tipamt)){ openTrack(o.id); if(route.page==='orders')renderPage(); toast(`💰 ${fmt(o.tip)} 🙏`,'💰'); } });
@@ -832,6 +872,8 @@ function homeHTML(){
 
   if(S.recent && recent.length) h += `<section class="section"><div class="sec-head"><div><h2>🕘 ${t('secRecent')}</h2></div></div>
     <div class="recent-row">${recent.map(id=>{const p=getP(id); return p?`<div class="recent-item" data-open="${p.id}"><div class="re ${p.g}">${mediaHTML(p)}</div><b>${esc(p.n)}</b></div>`:'';}).join('')}</div></section>`;
+
+  if(S.reorder) h += reorderHTML();
 
   if(S.cities) h += `<section class="section"><div class="sec-head"><div><h2>🌍 ${t('secAny')}</h2><p>${t('secAnySub')}</p></div></div>
     <div class="city-strip">${CITIES.slice(0,6).map(c=>`<div class="city" data-city="${c.n}"><span class="ce">${c.e}</span><b>${c.n}</b><small>${c.pin}</small></div>`).join('')}</div></section>`;
@@ -2014,7 +2056,7 @@ function renderCustomizer(tab='store'){
       <button data-c="flat" class="${T.cardStyle==='flat'?'active':''}">🧱 Flat</button></div></div>`;
   }
   if(tab==='home'){
-    const defs = [['hero','🎯 Hero banner'],['verticals','🧭 Category grid'],['promos','🎁 Promo banners'],['flash','⚡ Flash deals'],['best','🔥 Bestsellers'],['collections','🗂️ Collections'],['services','🛠️ Services'],['cities','🌍 Cities strip'],['testimonials','💬 Testimonials'],['recent','🕘 Recently viewed'],['footer','🦶 Footer']];
+    const defs = [['hero','🎯 Hero banner'],['verticals','🧭 Category grid'],['promos','🎁 Promo banners'],['flash','⚡ Flash deals'],['best','🔥 Bestsellers'],['collections','🗂️ Collections'],['services','🛠️ Services'],['cities','🌍 Cities strip'],['testimonials','💬 Testimonials'],['recent','🕘 Recently viewed'],['reorder','🔄 Reorder shelf'],['footer','🦶 Footer']];
     B.innerHTML = `<div class="c-group"><h4>Homepage sections</h4>
       ${defs.map(([k,l])=>`<div class="toggle-row"><span>${l}</span><label class="switch"><input type="checkbox" data-sec="${k}" ${S.sections[k]?'checked':''}/><span class="slider"></span></label></div>`).join('')}</div>
       <p class="muted small">Toggle sections on/off — the homepage rebuilds instantly.</p>`;

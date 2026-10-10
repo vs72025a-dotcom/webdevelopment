@@ -653,3 +653,9 @@ html[data-theme="dark"] .toast{background:#fff;color:#111}
 .build-row{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
 .build-row:last-child{border-bottom:none}
 .build-row .mini-qty{font-size:12px}
+
+/* ---- v10: reorder shelf ---- */
+.reorder-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.reorder-card{display:flex;gap:10px;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+.reorder-card .ce{width:46px;height:46px;font-size:24px;border-radius:12px;cursor:pointer}
+@media(max-width:900px){.reorder-row{grid-template-columns:repeat(2,1fr)}}

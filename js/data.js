@@ -167,7 +167,7 @@ const DEFAULT_SETTINGS = {
   announce:'🎉 Grand Sale — up to 60% OFF + extra 20% with code WELCOME20', showAnnounce:true,
   heroBadge:'⚡ Delivery in 30 mins — Anywhere', heroTitle:'Anything you crave, delivered Anywhere.', heroSub:'Food, groceries, fashion, electronics, medicines & home services — one cart, one checkout, one super-app.',
   heroCta1:'Order Food Now', heroCta2:'Explore Everything',
-  sections:{ hero:true, verticals:true, promos:true, flash:true, best:true, collections:true, services:true, cities:true, testimonials:true, recent:true, footer:true },
+  sections:{ hero:true, verticals:true, promos:true, flash:true, best:true, collections:true, services:true, cities:true, testimonials:true, recent:true, reorder:true, footer:true },
   theme:{ mode:'light', primary:'#e8433f', secondary:'#8b1e3f', font:"'Plus Jakarta Sans','Inter',system-ui,sans-serif", radius:16, cardStyle:'modern' },
   commerce:{ currency:'₹', deliveryFee:29, freeAbove:499, taxPct:5, showRatings:true, showVeg:true, showMrp:true, showTime:true },
 };
@@ -235,6 +235,8 @@ en:{
   buildTitle:'Build your own box', buildName:'Box name', buildNamePh:'e.g. Monthly Munchies', buildFreq:'Delivery every', buildAdd:'items in box', buildGo:'Subscribe custom box', buildNeed:'Add at least 1 item',
   giftSub:'Gift', giftToPh:'Who is it for?', giftMsgPh:'Enjoy your fresh box! 🎁', giftStart:'Starts', giftSave:'Schedule gift', giftCancel:'Cancel', giftFor:'Gift for', giftSent:'Gift subscription scheduled!', giftD1:'Tomorrow', giftD3:'In 3 days', giftD7:'In 7 days', giftD30:'In 30 days',
   tipTitle:'Tip your rider', tipSend:'Send tip', tipThanks:'Thanks for tipping!', tipTotal:'tips earned', tipCustom:'Custom',
+  giftWrapFirst:'Gift-wrap first delivery', tipBoard:'Top tipped riders',
+  secReorder:'Reorder essentials', secReorderSub:'Running low? One tap brings them back', reBought:'bought', reLow:'running low!',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -291,6 +293,8 @@ hi:{
   buildTitle:'अपना बॉक्स बनाएं', buildName:'बॉक्स का नाम', buildNamePh:'जैसे मासिक राशन', buildFreq:'डिलीवरी हर', buildAdd:'सामान', buildGo:'कस्टम बॉक्स सब्सक्राइब', buildNeed:'कम से कम 1 सामान जोड़ें',
   giftSub:'गिफ्ट', giftToPh:'किसके लिए है?', giftMsgPh:'अपना फ्रेश बॉक्स एंजॉय करो! 🎁', giftStart:'शुरू होगा', giftSave:'गिफ्ट शेड्यूल करें', giftCancel:'रद्द करें', giftFor:'गिफ्ट —', giftSent:'गिफ्ट सब्सक्रिप्शन शेड्यूल हुआ!', giftD1:'कल', giftD3:'3 दिन में', giftD7:'7 दिन में', giftD30:'30 दिन में',
   tipTitle:'राइडर को टिप दें', tipSend:'टिप भेजें', tipThanks:'टिप के लिए धन्यवाद!', tipTotal:'टिप मिली', tipCustom:'कस्टम',
+  giftWrapFirst:'पहली डिलीवरी गिफ्ट-रैप करें', tipBoard:'टॉप टिप वाले राइडर',
+  secReorder:'फिर से मंगाएं', secReorderSub:'खत्म हो रहा? एक टैप में वापस पाएं', reBought:'बार खरीदा', reLow:'खत्म हो रहा!',
 }};
 
 const RETURN_REASONS = [
@@ -325,3 +329,7 @@ const REF_BOARD = [
   { n:'Neha', pts:210 }, { n:'Rohan', pts:150 }, { n:'Isha', pts:90 }, { n:'Dev', pts:50 },
 ];
 const TIP_AMOUNTS = [10, 20, 50, 100];
+const TIP_BOARD = [
+  { n:'Arjun', pts:1250 }, { n:'Sana', pts:980 }, { n:'Kabir', pts:720 },
+  { n:'Meera', pts:540 }, { n:'Ravi', pts:310 }, { n:'Divya', pts:150 },
+];
