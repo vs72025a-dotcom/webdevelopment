@@ -53,6 +53,7 @@ const Cloud = {
   collect(){
     return {
       orders, extraProducts, deletedIds, editedProducts, addrs,
+      loyalty: (typeof loyalty !== 'undefined') ? loyalty : { pts:0, hist:[], updatedAt:0 },
       settings: Object.assign({}, settings, { updatedAt: Date.now() }),
     };
   },
@@ -101,16 +102,24 @@ const Cloud = {
     if(changed) saveAddrs();
     return changed;
   },
+  applyLoyalty(c){
+    if(!c || typeof c !== 'object' || typeof loyalty === 'undefined') return false;
+    if((c.updatedAt||0) <= (loyalty.updatedAt||0)) return false;
+    loyalty = { pts:c.pts||0, hist:Array.isArray(c.hist)?c.hist:[], updatedAt:c.updatedAt||0 };
+    try{ LS.set('aw_loyal_v1', loyalty); }catch{}
+    return true;
+  },
   async syncDown(forceSettings){
     if(!this.on) return false;
     const get = async k => { try{ const r = await this.pull(k); return r ? r.data : null; }catch{ return null; } };
-    const [cOrders, cExtra, cEdited, cDeleted, cAddrs, cSettings] = await Promise.all([
-      get('orders'), get('extraProducts'), get('editedProducts'), get('deletedIds'), get('addrs'), get('settings'),
+    const [cOrders, cExtra, cEdited, cDeleted, cAddrs, cSettings, cLoyalty] = await Promise.all([
+      get('orders'), get('extraProducts'), get('editedProducts'), get('deletedIds'), get('addrs'), get('settings'), get('loyalty'),
     ]);
     let changed = false;
     if(this.applyOrders(cOrders)) changed = true;
     if(this.applyProducts({ extra:cExtra, edited:cEdited, deleted:cDeleted })) changed = true;
     if(this.applyAddrs(cAddrs)) changed = true;
+    if(this.applyLoyalty(cLoyalty)) changed = true;
     if(forceSettings && cSettings && (cSettings.updatedAt||0) > (this.ensure().lastSync||0)){
       settings = Object.assign({}, DEFAULT_SETTINGS, cSettings);
       saveSettings(); changed = true;

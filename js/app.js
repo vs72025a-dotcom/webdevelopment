@@ -46,7 +46,8 @@ let rzpKey = LS.get('aw_rzp_v1', '');
 let route = { page:'home', vertical:'all', category:'all', query:'', sort:'pop' };
 let filters = { cats:new Set(), maxPrice:100000, minRating:0, vegOnly:false };
 let coState = { step:0, addr:{}, pay:'upi', upi:{ id:'', verified:false, name:'', app:'GPay' },
-  addrId:null, newAddr:false, slot:{ food:'asap', speed:'standard', service:'', serviceDate:'' } };
+  addrId:null, newAddr:false, redeem:false, split:{ on:false, map:{} },
+  slot:{ food:'asap', speed:'standard', service:'', serviceDate:'', schedDay:'', schedWin:0, schedTs:0 } };
 let ordView = 'list', calCursor = null, calDay = null;
 
 const saveSettings = () => LS.set('aw_settings_v1', settings);
@@ -57,6 +58,8 @@ const saveAddrs = () => LS.set('aw_addrs_v1', addrs);
 const saveNotifs = () => LS.set('aw_notifs_v1', notifs);
 const saveGift = () => LS.set('aw_gift_v1', gift);
 const saveBanners = () => LS.set('aw_banners_v1', customBanners);
+let loyalty = Object.assign({ pts:0, hist:[], updatedAt:0 }, LS.get('aw_loyal_v1', {}));
+const saveLoyalty = () => { loyalty.updatedAt = Date.now(); LS.set('aw_loyal_v1', loyalty); };
 
 /* ---------------- Helpers ---------------- */
 const t = k => (I18N[settings.lang] && I18N[settings.lang][k]) || I18N.en[k] || k;
@@ -204,10 +207,84 @@ function slotSummary(o){
   return parts.join(' • ');
 }
 
+/* ---------------- v6: scheduling + loyalty + split ---------------- */
+const SCHED_WINS = [['9 AM','11 AM'],['11 AM','1 PM'],['1 PM','3 PM'],['3 PM','5 PM'],['5 PM','7 PM'],['7 PM','9 PM']];
+function schedDays(){
+  const out = [], now = new Date();
+  for(let d=0; d<3; d++){
+    const dt = new Date(now.getTime()+d*864e5);
+    const iso = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    const dn = (HI()?DAY_HI:DAY_EN)[dt.getDay()];
+    out.push({ d:iso, l:d===0?t('schedToday'):d===1?t('schedTomw'):dn });
+  }
+  return out;
+}
+function schedTsFor(dayISO, winIdx){
+  const w = SCHED_WINS[winIdx] || SCHED_WINS[0];
+  let h = parseInt(w[0]) % 12; if(/PM/i.test(w[0])) h += 12;
+  const dt = new Date(dayISO+'T12:00:00'); dt.setHours(h, 0, 0, 0);
+  return dt.getTime();
+}
+function schedLabel(ts){
+  if(!ts) return '';
+  const d = new Date(ts), iso = isoDay(ts);
+  const dayL = iso===isoDay(Date.now()) ? t('schedToday') : iso===addDaysISO(Date.now(),1) ? t('schedTomw')
+    : d.toLocaleDateString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short'});
+  return `${dayL}, ${fmtHour(d.getHours())}–${fmtHour(d.getHours()+2)}`;
+}
+function schedCountdown(ts){
+  const ms = (ts||0) - Date.now();
+  if(ms <= 0) return '';
+  const h = Math.floor(ms/36e5), m = Math.round((ms%36e5)/6e4);
+  return h>0 ? `${t('schedSoon')} ${h}h ${m}m` : `${t('schedSoon')} ${m}m`;
+}
+function loyEarnFor(total){ return Math.floor(Math.max(0,total)/10); }
+function loyRedeemable(total){
+  if(!coState.redeem) return 0;
+  return Math.min(loyalty.pts||0, Math.max(0, Math.round(total)));
+}
+function loyAdd(pts, label){
+  loyalty.pts = Math.max(0, (loyalty.pts||0) + pts);
+  loyalty.hist.unshift({ ts:Date.now(), pts, label:label||'' });
+  loyalty.hist = loyalty.hist.slice(0, 50);
+  saveLoyalty(); cloudUp();
+}
+function splitAddrs(){
+  const list = addrs.map(a=>({ id:a.id, label:`${a.label==='home'?'🏠':a.label==='work'?'💼':'📍'} ${a.name} • ${a.city}` }));
+  if(coState.newAddr || !addrs.length) list.push({ id:'__new', label:'📝 ' + t('splitNew') });
+  return list;
+}
+function splitHTML(){
+  if(!addrs.length) return '';
+  const tt = cartTotals();
+  if(!tt.items.length) return '';
+  let h = `<div class="addr-head" style="margin-top:16px"><h4>📦 ${t('splitTitle')}</h4>
+    <label class="switch"><input type="checkbox" id="splitOn" ${coState.split.on?'checked':''}/><span class="slider"></span></label></div>
+    <p class="muted small" style="margin:-6px 0 10px">${t('splitSub')}</p>`;
+  if(!coState.split.on) return h;
+  const opts = splitAddrs();
+  h += `<div class="split-list">` + tt.items.map(({p,qty})=>{
+    const cur = coState.split.map[p.id] || opts[0].id;
+    return `<div class="split-row"><span class="ce ${p.g}">${mediaHTML(p)}</span>
+      <div style="flex:1"><b>${esc(p.n)} × ${qty}</b><br/><small class="muted">${fmt(p.p*qty)}</small></div>
+      <div><small class="muted">${t('splitTo')}</small><br/><select data-splitfor="${p.id}">${opts.map(o=>`<option value="${o.id}" ${cur===o.id?'selected':''}>${esc(o.label)}</option>`).join('')}</select></div></div>`;
+  }).join('') + `</div>`;
+  return h;
+}
+function openWallet(){
+  const box = $('#walletBox'); if(!box) return;
+  box.innerHTML = `<div class="modal-head"><h3>⭐ ${t('loyTitle')}</h3><button class="icon-btn" onclick="document.getElementById('walletModal').classList.remove('show')">✕</button></div>
+  <div class="modal-body"><div class="loy-hero"><small>${t('loyBal')}</small><b>⭐ ${loyalty.pts||0}</b><span>${t('loyRule')}</span></div>
+  <div class="addr-head"><h4>🧾 ${t('loyHist')}</h4></div>
+  ${(loyalty.hist||[]).length ? (loyalty.hist||[]).map(h=>`<div class="loy-row"><span class="lr-e">${h.pts>0?'🪙':'💸'}</span><div style="flex:1"><b>${h.pts>0?'+':''}${h.pts} ${t('loyPts')}</b><br/><small class="muted">${esc(h.label||'')}</small></div><small class="muted">${timeAgo(h.ts)}</small></div>`).join('') : `<p class="muted center">${t('loyEmpty')}</p>`}</div>`;
+  openModal('walletModal');
+}
+
 /* ---------------- Calendar helpers ---------------- */
 const isoDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const addDaysISO = (ts, n) => isoDay(new Date(ts).getTime()+n*864e5);
 function expectedDelivery(o){
+  if(o.scheduledFor) return isoDay(o.scheduledFor);
   if(o.slot && o.slot.serviceDate) return o.slot.serviceDate;
   const hasShip = o.items.some(i=>{ const p = getP(i.id); return p && !['food','services'].includes(p.v); });
   const onlyFood = o.items.every(i=>{ const p = getP(i.id); return p && p.v==='food'; });
@@ -325,7 +402,7 @@ function renderNav(){
   }
   const links = [
     ['🏠', t('sideHome'), 'home'], ['🧭', t('sideExplore'), 'shop'], ['🏷️', t('sideOffers'), 'offers'],
-    ['📦', t('sideOrders'), 'orders'], ['❤️', t('sideWish'), 'wish'], ['💼', t('sideSeller'), 'seller'],
+    ['📦', t('sideOrders'), 'orders'], ['❤️', t('sideWish'), 'wish'], ['⭐', `${t('loyTitle')} (${loyalty.pts||0})`, 'wallet'], ['💼', t('sideSeller'), 'seller'],
     ['🎨', t('sideCustom'), 'custom'],
     ...VERTICALS.map(v => [v.emoji, vname(v), 'v:'+v.id]),
   ];
@@ -340,6 +417,7 @@ function renderNav(){
       else if(a==='orders') route.page='orders';
       else if(a==='seller') route.page='seller';
       else if(a==='wish'){ openDrawer('wishDrawer'); renderWish(); return; }
+      else if(a==='wallet'){ openWallet(); return; }
       else if(a==='custom'){ openDrawer('customDrawer'); renderCustomizer('store'); return; }
       else if(a.startsWith('v:')) route={page:'shop',vertical:a.slice(2),category:'all',query:'',sort:'pop'};
       renderAll(); window.scrollTo({top:0,behavior:'smooth'});
@@ -553,6 +631,8 @@ function orderCardHTML(o){
     <div class="order-items">${o.items.map(i=>{const p=getP(i.id);return p?p.e:'📦';}).join('')}${o.gift?'🎁':''}</div>
     <div class="order-meta"><span>🧾 ${o.items.reduce((a,i)=>a+i.qty,0)} ${t('ordItems')}</span><span>💰 ${fmt(o.total)}</span><span>📅 ${o.date}</span><span>📍 ${esc(o.addr.city||location.n)}</span>
     ${sum?`<span>🕐 ${esc(sum)}</span>`:''}${o.gift?`<span>🎁 ${esc(occName(o.gift.occasion))}</span>`:''}
+    ${o.scheduledFor?`<span>⏰ ${esc(schedLabel(o.scheduledFor))}${schedCountdown(o.scheduledFor)?` • ${esc(schedCountdown(o.scheduledFor))}`:''}</span>`:''}
+    ${o.splitCount?`<span>📦 ${o.splitIdx} ${t('splitOf')} ${o.splitCount} ${t('splitShip')}</span>`:''}
     ${o.rating?`<span style="color:#f59e0b">★ ${o.rating.stars}</span>`:''}</div>
     <div class="track-steps">${[0,1,2,3,4].map(i=>`<div class="tstep ${i<=o.status?'done':''}"><div class="tdot">${i<=o.status?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
     ${o.return?`<div class="refund-line">↩ ${t('retStatus')}: <b>${retStatusName(o.return.status)}</b> • ${fmt(o.return.amt||o.total)} ${t('retTo')} ${esc(o.pay)}</div>`:''}
@@ -798,8 +878,10 @@ function cartTotals(){
   const expFee = (coState.slot.speed==='express' && hasShip && items.length) ? EXPRESS_FEE : 0;
   const giftFee = (gift.on && items.length) ? GIFT_FEE : 0;
   const tax = Math.max(0,(sub-discount)) * cm.taxPct/100;
-  return { items, mrp, sub, discount, del, expFee, giftFee, tax,
-    total: Math.max(0, sub-discount+del+expFee+giftFee+tax), count: items.reduce((a,i)=>a+i.qty,0) };
+  const preRedeem = Math.max(0, sub-discount+del+expFee+giftFee+tax);
+  const redeem = loyRedeemable(preRedeem);
+  return { items, mrp, sub, discount, del, expFee, giftFee, tax, redeem,
+    total: Math.max(0, preRedeem-redeem), count: items.reduce((a,i)=>a+i.qty,0) };
 }
 function setQty(id, qty){
   qty = Math.max(0, Math.min(20, qty));
@@ -870,6 +952,7 @@ function renderCart(){
     <div class="bill-row"><span>${t('tax')} (${cm.taxPct}%)</span><span>${fmt(tt.tax)}</span></div>
     <div class="bill-row"><span class="off">${t('saveMrp')}</span><span class="off">${fmt(tt.mrp-tt.sub)}</span></div>
     <div class="bill-row total"><span>${t('total')}</span><span>${fmt(tt.total)}</span></div>
+    <div class="bill-row"><span>⭐ ${t('loyEarn')}</span><span class="off">+${loyEarnFor(tt.total)} ${t('loyPts')}</span></div>
     <button class="btn primary full" id="btnCheckout" style="margin-top:12px">${t('checkoutBtn')}</button>`;
   const ca = $('#couponApply');
   if(ca) ca.onclick = () => {
@@ -1007,8 +1090,9 @@ function openCheckout(){
   const svc = serviceSlots();
   coState = { step:0, addr:coState.addr||{}, pay:(coState.pay==='razorpay'&&!rzpKey)?'upi':(coState.pay||'upi'),
     upi:coState.upi&&coState.upi.id ? coState.upi : { id:'', verified:false, name:'', app:'GPay' },
-    addrId:addrs.length?addrs[0].id:null, newAddr:!addrs.length,
-    slot:{ food:'asap', speed:coState.slot?coState.slot.speed:'standard', service:svc.length?svc[0].v:'', serviceDate:svc.length?svc[0].d:'' } };
+    addrId:addrs.length?addrs[0].id:null, newAddr:!addrs.length, redeem:false,
+    split:{ on:false, map:{} },
+    slot:{ food:'asap', speed:coState.slot?coState.slot.speed:'standard', service:svc.length?svc[0].v:'', serviceDate:svc.length?svc[0].d:'', schedDay:'', schedWin:0, schedTs:0 } };
   renderCheckout(); closeAll(); openModal('checkoutModal');
 }
 function upiPanelHTML(total){
@@ -1045,6 +1129,16 @@ function slotHTML(){
   if(hasShip) h += `<div class="slot-sec"><h4>📦 ${t('slotSpeed')}</h4><div class="slot-pills">
     <button class="slot-pill ${coState.slot.speed==='standard'?'sel':''}" data-slotspeed="standard">${t('slotStd')}<small>${t('delivery')}: ${fmt(settings.commerce.deliveryFee)}</small></button>
     <button class="slot-pill ${coState.slot.speed==='express'?'sel':''}" data-slotspeed="express">⚡ ${t('slotExp')}<small>+ ${fmt(EXPRESS_FEE)}</small></button></div></div>`;
+  const hasSched = tt.items.some(i=>['food','grocery'].includes(i.p.v));
+  if(hasSched){
+    const days = schedDays();
+    if(!coState.slot.schedDay) coState.slot.schedDay = days[0].d;
+    h += `<div class="slot-sec"><h4>⏰ ${t('schedTitle')}</h4><div class="slot-pills">
+      <button class="slot-pill ${!coState.slot.schedTs?'sel':''}" data-schedmode="now">⚡ ${t('schedNow')}</button>
+      <button class="slot-pill ${coState.slot.schedTs?'sel':''}" data-schedmode="later">🗓️ ${t('schedLater')}</button></div>
+      ${coState.slot.schedTs?`<div class="slot-sub">${t('schedDay')}</div><div class="slot-pills">${days.map(d=>`<button class="slot-pill ${coState.slot.schedDay===d.d?'sel':''}" data-schedday="${d.d}">${esc(d.l)}</button>`).join('')}</div>
+      <div class="slot-sub">${t('schedTime')}</div><div class="slot-pills">${SCHED_WINS.map((w,i)=>`<button class="slot-pill ${+coState.slot.schedWin===i?'sel':''}" data-schedwin="${i}">${w[0]}–${w[1]}</button>`).join('')}</div>`:''}</div>`;
+  }
   return h;
 }
 function payMethods(){
@@ -1053,24 +1147,72 @@ function payMethods(){
   return m;
 }
 function doPlaceOrder(tt, box, payLabel, extra){
-  const o = Object.assign({ id:uid('AW').toUpperCase(), items:tt.items.map(i=>({id:i.p.id,qty:i.qty,price:i.p.p})),
-    total:Math.round(tt.total), sub:Math.round(tt.sub), discount:Math.round(tt.discount),
-    status:0, date:new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}),
-    addr:coState.addr, pay:payLabel, upi:'', placedAt:Date.now(),
-    slot:Object.assign({}, coState.slot), gift:gift.on?Object.assign({}, gift):null, rating:null }, extra||{});
-  orders.push(o); saveOrders(); cloudUp();
+  const schedTs = (coState.slot.schedTs||0) > Date.now() ? coState.slot.schedTs : 0;
+  let groups = null;
+  if(coState.split.on && addrs.length){
+    const opts = splitAddrs();
+    groups = {};
+    tt.items.forEach(({p,qty})=>{
+      let aid = coState.split.map[p.id];
+      if(!opts.some(o=>o.id===aid)) aid = opts[0].id;
+      (groups[aid] = groups[aid] || []).push({p, qty});
+    });
+    if(Object.keys(groups).length < 2) groups = null;
+  }
+  const cm = settings.commerce;
+  const mkAddr = aid => {
+    if(aid === '__new' || !aid) return Object.assign({}, coState.addr);
+    const a = addrs.find(x=>x.id===aid);
+    return a ? { name:a.name, phone:a.phone, line:a.line, city:a.city, pin:a.pin } : Object.assign({}, coState.addr);
+  };
+  const dateStr = new Date().toLocaleString(HI()?'hi-IN':'en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+  const mkOne = (items, addr, first, alloc) => Object.assign({
+    id:uid('AW').toUpperCase(), items:items.map(i=>({id:i.p.id,qty:i.qty,price:i.p.p})),
+    total:alloc.total, sub:alloc.sub, discount:alloc.disc,
+    status:0, date:dateStr, addr, pay:payLabel, upi:'', placedAt:Date.now(),
+    slot:Object.assign({}, coState.slot), gift:(gift.on&&first)?Object.assign({}, gift):null, rating:null,
+    scheduledFor:schedTs, reminded:false,
+  }, extra||{});
+  const made = [];
+  if(groups){
+    const keys = Object.keys(groups), spId = uid('SP').toUpperCase();
+    let accDisc = 0;
+    keys.forEach((k,idx)=>{
+      const items = groups[k];
+      const sub = items.reduce((a,i)=>a+i.p.p*i.qty,0);
+      const first = idx===0;
+      const disc = (idx<keys.length-1 && tt.sub>0) ? Math.round(tt.discount*sub/tt.sub) : Math.max(0, tt.discount-accDisc);
+      accDisc += disc;
+      const del = first ? tt.del : 0, exp = first ? tt.expFee : 0, gf = first ? tt.giftFee : 0;
+      const red = first ? tt.redeem : 0;
+      const tax = Math.max(0, sub-disc) * cm.taxPct/100;
+      const total = Math.max(0, Math.round(sub-disc+del+exp+gf+tax-red));
+      const o = mkOne(items, mkAddr(k), first, { sub:Math.round(sub), disc, total });
+      o.splitId = spId; o.splitIdx = idx+1; o.splitCount = keys.length;
+      orders.push(o); made.push(o);
+    });
+  } else {
+    made.push(mkOne(tt.items, Object.assign({}, coState.addr), true, { sub:Math.round(tt.sub), disc:Math.round(tt.discount), total:Math.round(tt.total) }));
+    orders.push(made[0]);
+  }
+  saveOrders(); cloudUp();
+  if(tt.redeem > 0) loyAdd(-tt.redeem, `${HI()?'रिडीम':'Redeemed'} — #${made[0].id}`);
+  const earned = made.reduce((a,o)=>a+loyEarnFor(o.total),0);
+  if(earned > 0) loyAdd(earned, `${HI()?'ऑर्डर':'Order'} #${made[0].id}`);
   cart={}; activeCoupon=null; saveCart(); LS.del('aw_coupon_v1'); updateBadges();
-  notify(HI()?'ऑर्डर कन्फर्म 🎉':'Order confirmed 🎉', `#${o.id} • ${fmt(o.total)}`, '🎉');
-  const soon = HI() ? `${esc(o.addr.city)} में जल्द आ रहा है` : `arriving soon at ${esc(o.addr.city)}`;
+  notify(HI()?'ऑर्डर कन्फर्म 🎉':'Order confirmed 🎉',
+    made.length>1 ? `${made.length} shipments • ${fmt(made.reduce((a,o)=>a+o.total,0))}` : `#${made[0].id} • ${fmt(made[0].total)}`, '🎉');
+  if(earned > 0) notify(`⭐ +${earned} ${t('loyPts')} ${t('loyGot')}`, `${t('loyBal')}: ${loyalty.pts}`, '⭐');
+  const rows = made.map(o=>`<div class="split-row"><span style="font-size:26px">📦</span><div style="flex:1"><b>#${o.id}</b>${o.splitCount?` <small class="muted">${o.splitIdx} ${t('splitOf')} ${o.splitCount} ${t('splitShip')}</small>`:''}<br/><small class="muted">📍 ${esc(o.addr.city||'')} • ${fmt(o.total)}${o.scheduledFor?` • ⏰ ${esc(schedLabel(o.scheduledFor))}`:''}</small></div><button class="btn secondary sm" data-oktrack="${o.id}">📍 ${t('coTrack')}</button></div>`).join('');
   box.innerHTML = `<div class="modal-body"><div class="success-box"><div class="big">🎉</div>
-    <h2>${t('coSuccess')}</h2><p class="muted">${HI()?'ऑर्डर':'Order'} <b>#${o.id}</b> • ${fmt(o.total)} • ${soon}</p>
-    ${slotSummary(o)?`<p class="muted small">🕐 ${esc(slotSummary(o))}</p>`:''}
-    <div class="track-steps" style="margin:18px 0">${[0,1,2,3,4].map(i=>`<div class="tstep ${i===0?'done':''}"><div class="tdot">${i===0?'✓':i+1}</div>${statusName(i)}</div>`).join('')}</div>
-    <div style="display:flex;gap:8px;justify-content:center"><button class="btn primary" id="okTrack">📍 ${t('coTrack')}</button>
-    <button class="btn secondary" id="okShop">${t('coShop')}</button></div></div></div>`;
-  const ot = $('#okTrack'); if(ot) ot.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='orders'; renderAll(); openTrack(o.id); };
-  const os = $('#okShop'); if(os) os.onclick = ()=>{ const cm=$('#checkoutModal'); if(cm) cm.classList.remove('show'); route.page='home'; renderAll(); };
+    <h2>${t('coSuccess')}</h2><p class="muted">${HI()?'कुल':'Total'} <b>${fmt(made.reduce((a,o)=>a+o.total,0))}</b>${earned?` • ⭐ +${earned}`:''}</p>
+    ${slotSummary(made[0])?`<p class="muted small">🕐 ${esc(slotSummary(made[0]))}</p>`:''}
+    <div class="split-list" style="text-align:left;margin:14px 0">${rows}</div>
+    <button class="btn secondary" id="okShop">${t('coShop')}</button></div></div>`;
+  $$('[data-oktrack]',box).forEach(b=>b.onclick=()=>{ const cm2=$('#checkoutModal'); if(cm2) cm2.classList.remove('show'); route.page='orders'; renderAll(); openTrack(b.dataset.oktrack); });
+  const os = $('#okShop'); if(os) os.onclick = ()=>{ const cm2=$('#checkoutModal'); if(cm2) cm2.classList.remove('show'); route.page='home'; renderAll(); };
 }
+
 let rzpLoading = null;
 function loadRazorpay(){
   if(window.Razorpay) return Promise.resolve(true);
@@ -1114,6 +1256,7 @@ function renderCheckout(){
     <div class="modal-body"><div class="co-steps"><div class="active">1. ${t('coAddr')}</div><div>2. ${t('coPay')}</div><div>3. ${t('coDone')}</div></div>
     ${checkoutAddrHTML()}
     ${slotHTML()}
+    ${splitHTML()}
     <div class="bill-row total"><span>${t('coPayable')}</span><span>${fmt(tt.total)}</span></div>
     <button class="btn primary full" id="coNext" style="margin-top:12px">${t('coContinue')}</button></div>`;
   else if(coState.step===1) box.innerHTML = `
@@ -1121,8 +1264,11 @@ function renderCheckout(){
     <div class="modal-body"><div class="co-steps"><div>1. ${t('coAddr')}</div><div class="active">2. ${t('coPay')}</div><div>3. ${t('coDone')}</div></div>
     ${payMethods().map(([v,e,l])=>`<div class="pay-opt ${coState.pay===v?'sel':''}" data-pay="${v}"><span class="pe">${e}</span>${l}</div>`).join('')}
     ${coState.pay==='upi' ? upiPanelHTML(tt.total) : ''}
+    <div class="loy-box"><div class="toggle-row" style="border:none;padding:0"><span>⭐ ${t('loyUse')} <b>(${(loyalty.pts||0)} ${t('loyPts')})</b></span><label class="switch"><input type="checkbox" id="loyRedeem" ${(loyalty.pts||0)>0&&coState.redeem?'checked':''} ${(loyalty.pts||0)>0?'':'disabled'}/><span class="slider"></span></label></div>
+    <small class="muted">${t('loyRule')} • ${t('loyEarn')} <b>+${loyEarnFor(tt.total)} ⭐</b></small></div>
     <div class="bill-row"><span>${t('coItems')} (${tt.count})</span><span>${fmt(tt.sub)}</span></div>
     ${tt.discount?`<div class="bill-row"><span>${t('coCoupon')}</span><span class="off">− ${fmt(tt.discount)}</span></div>`:''}
+    ${tt.redeem?`<div class="bill-row"><span>⭐ ${t('loyApplied')}</span><span class="off">− ${fmt(tt.redeem)}</span></div>`:''}
     <div class="bill-row"><span>${t('coDelTax')}</span><span>${fmt(tt.del+tt.tax)}</span></div>
     ${tt.expFee?`<div class="bill-row"><span>⚡ ${t('expFee')}</span><span>${fmt(tt.expFee)}</span></div>`:''}
     ${tt.giftFee?`<div class="bill-row"><span>🎁 ${t('giftFee')}</span><span>${fmt(tt.giftFee)}</span></div>`:''}
@@ -1134,6 +1280,16 @@ function renderCheckout(){
     $$('[data-slotf]',box).forEach(el=>el.onclick=()=>{ coState.slot.food=el.dataset.slotf; renderCheckout(); });
     $$('[data-slots]',box).forEach(el=>el.onclick=()=>{ coState.slot.service=el.dataset.slots; coState.slot.serviceDate=el.dataset.slotd||''; renderCheckout(); });
     $$('[data-slotspeed]',box).forEach(el=>el.onclick=()=>{ coState.slot.speed=el.dataset.slotspeed; renderCheckout(); });
+    $$('[data-schedmode]',box).forEach(el=>el.onclick=()=>{
+      if(el.dataset.schedmode==='now'){ coState.slot.schedTs = 0; }
+      else { const d = schedDays(); if(!coState.slot.schedDay) coState.slot.schedDay = d[0].d; coState.slot.schedTs = schedTsFor(coState.slot.schedDay, +coState.slot.schedWin||0); }
+      renderCheckout();
+    });
+    $$('[data-schedday]',box).forEach(el=>el.onclick=()=>{ coState.slot.schedDay = el.dataset.schedday; coState.slot.schedTs = schedTsFor(coState.slot.schedDay, +coState.slot.schedWin||0); renderCheckout(); });
+    $$('[data-schedwin]',box).forEach(el=>el.onclick=()=>{ coState.slot.schedWin = +el.dataset.schedwin; coState.slot.schedTs = schedTsFor(coState.slot.schedDay||schedDays()[0].d, +coState.slot.schedWin); renderCheckout(); });
+    const spOn = $('#splitOn');
+    if(spOn) spOn.onchange = ()=>{ coState.split.on = spOn.checked; renderCheckout(); };
+    $$('[data-splitfor]',box).forEach(sel=>sel.onchange=()=>{ coState.split.map[sel.dataset.splitfor]=sel.value; });
     const nb = $('#coNew'); if(nb) nb.onclick = ()=>{ coState.newAddr=true; renderCheckout(); };
     const bs = $('#coBackSaved'); if(bs) bs.onclick = ()=>{ coState.newAddr=false; renderCheckout(); };
     const cn = $('#coNext');
@@ -1170,6 +1326,8 @@ function renderCheckout(){
         }, 1100);
       };
     }
+    const lr = $('#loyRedeem');
+    if(lr) lr.onchange = ()=>{ coState.redeem = lr.checked; renderCheckout(); };
     const bk = $('#coBack'); if(bk) bk.onclick = ()=>{ coState.step=0; renderCheckout(); };
     const pl = $('#coPlace');
     if(pl) pl.onclick = ()=>{
@@ -1352,9 +1510,16 @@ function openReturn(id){
   };
 }
 /* demo live simulation: orders + refunds advance over time */
-setInterval(()=>{
+function tickSim(){
   let moved = false;
   orders.forEach(o=>{
+    if(o.scheduledFor && o.scheduledFor > Date.now()){
+      if(!o.reminded && o.scheduledFor - Date.now() < 30*60*1000){
+        o.reminded = true; moved = true;
+        notify(`⏰ ${t('schedRemind')}`, `#${o.id} • ${t('schedRemindSub')} (${schedLabel(o.scheduledFor)})`, '⏰');
+      }
+      return;
+    }
     if(o.status<4 && Math.random()<.25){
       o.status++; moved=true;
       notify(HI()?'ऑर्डर अपडेट':'Order update', `#${o.id}: ${statusName(o.status)}`, o.status===4?'✅':'📦');
@@ -1367,7 +1532,8 @@ setInterval(()=>{
     }
   });
   if(moved){ saveOrders(); cloudUp(); if(route.page==='orders') renderPage(); }
-}, 25000);
+}
+setInterval(tickSim, 25000);
 
 /* ============================================================
    LOCATION + AUTH (+ address manager) + SEARCH + VOICE
@@ -1741,7 +1907,7 @@ function bindCustomizer(tab){
   }
 }
 function exportData(){
-  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, customBanners, exportedAt:new Date().toISOString() };
+  const data = { settings, extraProducts, deletedIds, editedProducts, addrs, customBanners, loyalty, exportedAt:new Date().toISOString() };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download = 'anywhere-anything-backup.json'; a.click();
@@ -1885,6 +2051,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(d.editedProducts){ editedProducts=d.editedProducts; LS.set('aw_products_edited_v1',editedProducts); }
       if(d.addrs){ addrs=d.addrs; saveAddrs(); }
       if(d.customBanners){ customBanners=d.customBanners; saveBanners(); }
+      if(d.loyalty){ loyalty=Object.assign({pts:0,hist:[],updatedAt:0},d.loyalty); saveLoyalty(); }
       renderAll(); renderCustomizer('store'); toast('Backup restored!','💾');
     }catch{ toast('Invalid backup file','⚠️'); } };
     rd.readAsText(f); e.target.value='';

@@ -612,3 +612,18 @@ html[data-theme="dark"] .toast{background:#fff;color:#111}
 .ev-pill{font-size:10px;font-weight:800;padding:3px 9px;border-radius:99px;white-space:nowrap}
 .ev-placed{background:#dbeafe;color:#1d4ed8}.ev-delivery{background:#dcfce7;color:#15803d}.ev-service{background:#fef3c7;color:#92400e}
 @media(max-width:900px){.cal-wrap{grid-template-columns:1fr}}
+
+/* ---- v6: schedule / loyalty / split ---- */
+.slot-sub{font-size:12px;font-weight:800;color:var(--muted);margin:10px 2px 6px}
+.split-list{display:flex;flex-direction:column;gap:10px}
+.split-row{display:flex;gap:10px;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+.split-row .ce{width:44px;height:44px;font-size:22px;border-radius:12px}
+.split-row select{max-width:170px}
+.loy-box{background:linear-gradient(135deg,#fef9c3,#fde68a);border:1px solid #f59e0b55;border-radius:var(--radius-sm);padding:12px 14px;margin:12px 0}
+[data-theme="dark"] .loy-box{background:linear-gradient(135deg,#422006,#451a03);border-color:#f59e0b66}
+.loy-hero{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;border-radius:var(--radius);padding:22px;text-align:center;margin-bottom:14px}
+.loy-hero small{opacity:.9;font-weight:700}
+.loy-hero b{display:block;font-size:34px;margin:4px 0}
+.loy-hero span{font-size:12px;opacity:.9}
+.loy-row{display:flex;gap:10px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--border)}
+.lr-e{font-size:22px}

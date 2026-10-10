@@ -222,6 +222,10 @@ en:{
   voiceListen:'Listening… speak now', voiceNone:'Voice search not supported here', voiceNoHit:'Did not catch that — try again',
   calList:'List', calCal:'Calendar', calPlaced:'Ordered', calDelivery:'Delivery', calService:'Service visit', calNone:'Nothing scheduled this day', calToday:'Today',
   rzpTitle:'Online payments (Razorpay)', rzpDesc:'Accept UPI, cards & netbanking via your own Razorpay key. Leave empty to hide.', rzpKey:'Razorpay Key ID', rzpSave:'Save key', rzpRemove:'Remove', rzpPay:'Razorpay — UPI, cards & more', rzpLoad:'Loading Razorpay…', rzpWin:'Complete payment in the Razorpay window', rzpFail:'Payment failed or cancelled',
+  schedTitle:'Schedule delivery', schedNow:'Deliver now', schedLater:'Schedule for later', schedDay:'Day', schedTime:'Time window', schedToday:'Today', schedTomw:'Tomorrow',
+  schedSoon:'in', schedChip:'Scheduled', schedRemind:'Delivery reminder', schedRemindSub:'Your scheduled order is on its way soon',
+  loyTitle:'Loyalty wallet', loyBal:'Points balance', loyEarn:'You will earn', loyPts:'pts', loyUse:'Use loyalty points', loyApplied:'Loyalty discount', loyHist:'History', loyEmpty:'No loyalty activity yet — place an order to earn!', loyRule:'Earn 1 pt per ₹10 • 1 pt = ₹1 off', loyGot:'points earned!',
+  splitTitle:'Split across addresses', splitSub:'Send items to different addresses in one checkout', splitTo:'Deliver to', splitNew:'Use checkout address', splitOf:'of', splitShip:'shipment',
 },
 hi:{
   searchPh:'"पिज़्ज़ा", "दूध", "हेडफ़ोन" खोजें…', searchPhM:'कुछ भी खोजें…', search:'खोजें', cart:'कार्ट', deliverTo:'डिलीवरी पता', all:'सभी',
@@ -265,6 +269,10 @@ hi:{
   voiceListen:'सुन रहे हैं… बोलें', voiceNone:'यहां वॉइस सर्च नहीं है', voiceNoHit:'समझ नहीं आया — फिर बोलें',
   calList:'लिस्ट', calCal:'कैलेंडर', calPlaced:'ऑर्डर', calDelivery:'डिलीवरी', calService:'सर्विस विज़िट', calNone:'इस दिन कुछ नहीं', calToday:'आज',
   rzpTitle:'ऑनलाइन पेमेंट (Razorpay)', rzpDesc:'अपनी Razorpay key से UPI, कार्ड व नेटबैंकिंग लें। खाली रखें तो छिपा रहेगा।', rzpKey:'Razorpay Key ID', rzpSave:'की सेव करें', rzpRemove:'हटाएं', rzpPay:'Razorpay — UPI, कार्ड व और', rzpLoad:'Razorpay खुल रहा…', rzpWin:'Razorpay विंडो में पेमेंट करें', rzpFail:'पेमेंट असफल या रद्द',
+  schedTitle:'डिलीवरी शेड्यूल करें', schedNow:'अभी मंगाएं', schedLater:'बाद के लिए शेड्यूल', schedDay:'दिन', schedTime:'समय चुनें', schedToday:'आज', schedTomw:'कल',
+  schedSoon:'में', schedChip:'शेड्यूल्ड', schedRemind:'डिलीवरी रिमाइंडर', schedRemindSub:'आपका शेड्यूल्ड ऑर्डर जल्द आ रहा है',
+  loyTitle:'लॉयल्टी वॉलेट', loyBal:'पॉइंट बैलेंस', loyEarn:'मिलेंगे', loyPts:'पॉइंट', loyUse:'लॉयल्टी पॉइंट इस्तेमाल करें', loyApplied:'लॉयल्टी छूट', loyHist:'हिस्ट्री', loyEmpty:'अभी कोई गतिविधि नहीं — ऑर्डर करके कमाएं!', loyRule:'₹10 पर 1 पॉइंट • 1 पॉइंट = ₹1 छूट', loyGot:'पॉइंट मिले!',
+  splitTitle:'कई पतों पर भेजें', splitSub:'एक ही चेकआउट में सामान अलग-अलग पतों पर भेजें', splitTo:'डिलीवर होगा', splitNew:'चेकआउट वाला पता', splitOf:'/', splitShip:'पार्सल',
 }};
 
 const RETURN_REASONS = [

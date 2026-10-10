@@ -50,6 +50,12 @@ A complete, **fully customisable** storefront + commerce engine in pure HTML/CSS
 
 **📅 Order calendar** — My Orders has List + Calendar views: placed/delivery/service dates as dots, click any day for that day's orders
 
+**⏰ Scheduled delivery + reminders** — food & grocery carts can check out for a later day/time window; scheduled orders hold status with a live countdown chip and fire a reminder as the window nears
+
+**⭐ Loyalty wallet** — earn 1 pt per ₹10 on every order, redeem points (1 pt = ₹1) at checkout, full history in the side-menu wallet; balance syncs via Firebase
+
+**📦 Split checkout** — send one cart to multiple saved addresses in a single checkout: per-item address picker, linked multi-shipment orders with proportional coupons and one delivery fee
+
 **🎨 Fully customisable (no code)**
 Hit the floating **Customize** button:
 - **Store** — logo, name, tagline, announcement bar, hero badge/headline/CTAs
