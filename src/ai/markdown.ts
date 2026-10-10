@@ -318,7 +318,7 @@ export function renderMarkdown(source: string, options: MarkdownOptions = {}): s
       const lang = resolveLang(fence[2], raw, opts.defaultLang);
       const html = highlight(raw, lang);
       out.push(
-        `<div class="codeblock" data-lang="${lang}"><div class="codebar"><span class="codelang">${lang}</span><button class="copybtn" type="button" data-copy>Copy</button></div><pre><code>${html}\n</code></pre></div>`,
+        `<div class="codeblock" data-lang="${lang}"><div class="codebar"><span class="codelang">${lang}</span><div class="codebar-actions"><button class="copybtn" type="button" data-codelab title="Open snippet in Code Lab">Code Lab</button><button class="copybtn" type="button" data-copy>Copy</button></div></div><pre><code>${html}\n</code></pre></div>`,
       );
       continue;
     }

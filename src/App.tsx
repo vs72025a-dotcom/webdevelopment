@@ -115,6 +115,12 @@ function Workspace(): JSX.Element {
     return () => window.removeEventListener('keydown', onKey);
   }, [onKey]);
 
+  useEffect(() => {
+    const onLab = () => setView('codelab');
+    window.addEventListener('am:open-codelab', onLab);
+    return () => window.removeEventListener('am:open-codelab', onLab);
+  }, [setView]);
+
   // Close the drawer when the viewport shrinks past the breakpoint.
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 860px)');

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { renderMarkdown } from '../ai/markdown';
 import { Icon } from './Icons';
+import { emit, EVENTS } from '../lib/bus';
 
 /**
  * Markdown surface.
@@ -30,6 +31,16 @@ export const Markdown = memo(function Markdown({
 
     const onClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+
+      const labBtn = target.closest<HTMLButtonElement>('[data-codelab]');
+      if (labBtn) {
+        const block = labBtn.closest('.codeblock');
+        const code = block?.querySelector('code')?.textContent ?? '';
+        const lang = (block as HTMLElement)?.dataset.lang ?? 'typescript';
+        emit(EVENTS.codeSample, { label: 'Chat snippet', lang, code });
+        window.dispatchEvent(new CustomEvent('am:open-codelab'));
+        return;
+      }
 
       const copyBtn = target.closest<HTMLButtonElement>('[data-copy]');
       if (copyBtn) {

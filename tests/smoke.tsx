@@ -151,6 +151,10 @@ async function main(): Promise<void> {
   await settle(700);
   check('static analysis produced output', /Static analysis/.test(text('.card-title')));
   check('analysis output is non-trivial', (q('.card-pad .markdown')?.textContent ?? '').length > 80);
+  const mdSample = '```typescript\nconst answer: number = 42;\n```';
+  const mdHtml = require('../src/ai/markdown').renderMarkdown(mdSample);
+  check('markdown codeblock has Code Lab action button', mdHtml.includes('data-codelab'));
+  check('markdown codeblock has copy button', mdHtml.includes('data-copy'));
 
   click(tabs[3]);
   await settle(500);

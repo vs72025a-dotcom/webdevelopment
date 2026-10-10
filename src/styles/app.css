@@ -1075,6 +1075,12 @@ sup.cite {
   text-transform: uppercase;
   color: var(--text-faint);
 }
+.codebar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 .copybtn {
   margin-left: auto;
   border: 1px solid var(--border);
